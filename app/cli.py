@@ -2,6 +2,7 @@
 
 def print_banner(identity):
     print(f"AnonChat started as: {identity.display_name()}")
+    print("Security: encrypted (ephemeral session keys)")
     print("Type /help to see available commands.\n")
 
 
@@ -34,7 +35,7 @@ def handle_command(line, discovery, chat):
             print("No peers discovered.")
         else:
             print("\nPeers:")
-            for peer_id, (ip, _) in peers.items():
+            for peer_id, (ip, _, _) in peers.items():
                 print(f"  {peer_id:<15} {ip}")
             print()
         return True
