@@ -49,7 +49,7 @@ class Chat:
         if peer_id not in peers:
             raise ValueError("Unknown peer")
 
-        ip, _, peer_pub_key = peers[peer_id]
+        ip, _, peer_pub_key, _ = peers[peer_id]
 
         # Register peer key (no-op if already known)
         self.identity.crypto.register_peer(peer_id, peer_pub_key)
@@ -85,7 +85,7 @@ class Chat:
                 print(f"[chat] drop ENC from {sender_id} ({ip}): unknown peer")
             return
 
-        _, _, sender_pub_key = peers[sender_id]
+        _, _, sender_pub_key, _ = peers[sender_id]
 
         # Register peer key if needed
         self.identity.crypto.register_peer(sender_id, sender_pub_key)

@@ -1,5 +1,6 @@
 # core/discovery.py
 
+import base64
 import os
 import threading
 import time
@@ -52,7 +53,10 @@ class Discovery:
 
     def _broadcast_loop(self):
         while self.running:
-            msg = f"GM {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
+            nickname = self.identity.nickname or ""
+            nick_b64 = base64.urlsafe_b64encode(nickname.encode("utf-8")).decode("ascii")
+            payload = f"{self.identity.crypto.public_key_b64}|{nick_b64}"
+            msg = f"GM {self.identity.anon_id} {payload}"
             try:
                 self.transport.send(msg, self.broadcast_ip, self.port)
             except OSError:
@@ -95,17 +99,16 @@ class Discovery:
 
             now = time.time()
 
-            if msg_type == "GM":
-                pub_key = payload
-                self.peers[peer_id] = (ip, now, pub_key)
+            if msg_type in ("GM", "GM_ACK"):
+                pub_key, nick = self._parse_payload(payload)
+                self.peers[peer_id] = (ip, now, pub_key, nick)
 
-                # Reply directly
-                ack = f"GM_ACK {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
-                self.transport.send(ack, ip, self.port)
-
-            elif msg_type == "GM_ACK":
-                pub_key = payload
-                self.peers[peer_id] = (ip, now, pub_key)
+                if msg_type == "GM":
+                    nickname = self.identity.nickname or ""
+                    nick_b64 = base64.urlsafe_b64encode(nickname.encode("utf-8")).decode("ascii")
+                    ack_payload = f"{self.identity.crypto.public_key_b64}|{nick_b64}"
+                    ack = f"GM_ACK {self.identity.anon_id} {ack_payload}"
+                    self.transport.send(ack, ip, self.port)
             else:
                 if DEBUG:
                     print(f"[discovery] drop unknown type: {msg_type}")
@@ -117,8 +120,20 @@ class Discovery:
         now = time.time()
         expired = [
             peer_id
-            for peer_id, (_, last_seen, _) in self.peers.items()
+            for peer_id, (_, last_seen, _, _) in self.peers.items()
             if now - last_seen > self.PEER_TIMEOUT
         ]
         for peer_id in expired:
             del self.peers[peer_id]
+
+    def _parse_payload(self, payload: str):
+        if "|" not in payload:
+            return payload, None
+        pub_key, nick_b64 = payload.split("|", 1)
+        if not nick_b64:
+            return pub_key, None
+        try:
+            nick = base64.urlsafe_b64decode(nick_b64.encode("ascii")).decode("utf-8")
+        except Exception:
+            nick = None
+        return pub_key, nick

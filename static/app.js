@@ -5,13 +5,7 @@ const ICONS = {
     USER: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
 };
 
-const EMOJI_PICKER = [
-    '😀','😁','😂','🤣','😊','😍','😎','🤩',
-    '😇','😅','😉','🙃','😴','🤔','😮','😤',
-    '🥳','😱','😭','😡','👍','👎','👏','🙏',
-    '🔥','✨','🚀','💡','🎯','✅','❗','⚡',
-    '🎉','🤝','💬','🧠','🧩','📌','🔒','🛰️'
-];
+const EMOJI_PICKER = ['😀', '😄', '😂', '😊', '😍', '😎', '👍', '🔥', '✨', '🎉'];
 
 const state = {
     room: 'all',
@@ -26,7 +20,9 @@ const state = {
     rooms: [],
     currentInterface: '',
     interfaces: [],
-    pendingOut: []
+    pendingOut: [],
+    unreadByRoom: {},
+    sidebarLastId: 0
 };
 
 const els = {
@@ -41,12 +37,15 @@ const els = {
     userName: document.getElementById('user-name'),
     nicknameInput: document.getElementById('nickname-input'),
     nicknameSave: document.getElementById('nickname-save'),
+    settingsButton: document.getElementById('settings-button'),
+    settingsPanel: document.getElementById('settings-panel'),
+    settingsClose: document.getElementById('settings-close'),
     form: document.getElementById('send-form'),
     msg: document.getElementById('message'),
-    ifaceButton: document.getElementById('interface-button'),
     ifaceMenu: document.getElementById('interface-menu'),
     ifaceLabel: document.getElementById('current-interface'),
     navFilter: document.getElementById('nav-filter'),
+    createRoom: document.getElementById('create-room'),
     messageFilter: document.getElementById('message-filter'),
     autoScrollBtn: document.getElementById('auto-scroll'),
     clearBtn: document.getElementById('clear-feed'),
@@ -56,6 +55,8 @@ const els = {
     emptyState: document.getElementById('empty-state'),
     toast: document.getElementById('toast'),
     charCount: document.getElementById('char-count'),
+    fileInput: document.getElementById('file-input'),
+    attachButton: document.getElementById('attach-button'),
     emojiToggle: document.getElementById('emoji-toggle'),
     emojiPicker: document.getElementById('emoji-picker')
 };
@@ -83,6 +84,15 @@ function updateScrollButton() {
     els.scrollBtn.classList.toggle('show', shouldShow);
     els.unreadBadge.textContent = state.unread;
     els.unreadBadge.classList.toggle('hidden', state.unread === 0);
+}
+
+function updateUnreadTotals() {
+    const total = Object.values(state.unreadByRoom).reduce((sum, value) => sum + value, 0);
+    if (total > 0) {
+        document.title = `(${total}) AnonChat // Secure`;
+    } else {
+        document.title = 'AnonChat // Secure';
+    }
 }
 
 function resetUnread() {
@@ -118,7 +128,8 @@ function updateHeader(peers) {
         els.count.textContent = `${peers.length} active peer(s)`;
     } else {
         const peer = peers.find(p => p.id === state.room);
-        els.title.textContent = `Priv: ${state.room.substring(0, 8)}...`;
+        const label = peer ? peerLabel(peer.id) : `${state.room.substring(0, 8)}...`;
+        els.title.textContent = `Priv: ${label}`;
         els.roomChip.textContent = 'Direct';
         if (peer && peer.last_seen) {
             els.count.textContent = `Last seen ${relativeTime(peer.last_seen)}`;
@@ -126,6 +137,14 @@ function updateHeader(peers) {
             els.count.textContent = 'Direct channel';
         }
     }
+}
+
+function peerLabel(peerId) {
+    const peer = state.peers.find(item => item.id === peerId);
+    if (peer && peer.nickname) {
+        return `${peer.nickname} (${peerId.substring(0, 8)})`;
+    }
+    return `${peerId.substring(0, 8)}...`;
 }
 
 function renderNav(rooms, peers) {
@@ -137,6 +156,13 @@ function renderNav(rooms, peers) {
     const allItem = document.createElement('div');
     allItem.className = `nav-item ${state.room === 'all' ? 'active' : ''}`;
     allItem.innerHTML = `${ICONS.HASH} <span>Global Lobby</span>`;
+    const allUnread = state.unreadByRoom.all || 0;
+    if (allUnread > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'nav-badge';
+        badge.textContent = allUnread;
+        allItem.appendChild(badge);
+    }
     allItem.onclick = () => switchRoom('all');
     if (!query || 'global lobby'.includes(query)) {
         els.rooms.appendChild(allItem);
@@ -147,7 +173,14 @@ function renderNav(rooms, peers) {
         if (query && !String(r).toLowerCase().includes(query)) return;
         const item = document.createElement('div');
         item.className = `nav-item ${state.room === r ? 'active' : ''}`;
-        item.innerHTML = `${ICONS.HASH} <span>${r}</span>`;
+        item.innerHTML = `${ICONS.HASH} <span>${peerLabel(r)}</span>`;
+        const unread = state.unreadByRoom[r] || 0;
+        if (unread > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'nav-badge';
+            badge.textContent = unread;
+            item.appendChild(badge);
+        }
         item.onclick = () => switchRoom(r);
         els.rooms.appendChild(item);
     });
@@ -165,7 +198,14 @@ function renderNav(rooms, peers) {
     filteredPeers.forEach(p => {
         const item = document.createElement('div');
         item.className = `nav-item ${state.room === p.id ? 'active' : ''}`;
-        item.innerHTML = `${ICONS.USER} <span class="mono">${p.id.substring(0, 8)}...</span>`;
+        item.innerHTML = `${ICONS.USER} <span>${peerLabel(p.id)}</span>`;
+        const unread = state.unreadByRoom[p.id] || 0;
+        if (unread > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'nav-badge';
+            badge.textContent = unread;
+            item.appendChild(badge);
+        }
         item.onclick = () => switchRoom(p.id);
         els.peers.appendChild(item);
     });
@@ -209,6 +249,86 @@ function consumePending(text, room) {
     return true;
 }
 
+function parsePayload(text) {
+    if (typeof text !== 'string') {
+        return { type: 'text', text: '' };
+    }
+    if (text.startsWith('FILE::')) {
+        try {
+            const payload = JSON.parse(text.slice(6));
+            if (payload && payload.data && payload.name) {
+                return { type: 'file', ...payload };
+            }
+            if (payload && payload.url && payload.name) {
+                return { type: 'file', ...payload };
+            }
+        } catch (err) {
+            return { type: 'text', text };
+        }
+    }
+    return { type: 'text', text };
+}
+
+function formatBytes(bytes) {
+    if (!bytes) return '';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let idx = 0;
+    let value = bytes;
+    while (value >= 1024 && idx < units.length - 1) {
+        value /= 1024;
+        idx += 1;
+    }
+    return `${value.toFixed(value >= 10 || idx === 0 ? 0 : 1)}${units[idx]}`;
+}
+
+function buildBubbleContent(bubble, payload) {
+    if (payload.type === 'text') {
+        bubble.textContent = payload.text;
+        return payload.text;
+    }
+
+    if (payload.type === 'file') {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'file-card';
+
+        const previewUrl = payload.data || payload.url;
+        if (payload.mime && payload.mime.startsWith('image/') && previewUrl) {
+            const img = document.createElement('img');
+            img.src = previewUrl;
+            img.alt = payload.name;
+            img.className = 'file-thumb';
+            wrapper.appendChild(img);
+        }
+
+        const info = document.createElement('div');
+        info.className = 'file-info';
+        const name = document.createElement('div');
+        name.className = 'file-name';
+        name.textContent = payload.name;
+        const meta = document.createElement('div');
+        meta.className = 'file-meta';
+        meta.textContent = payload.size ? formatBytes(payload.size) : payload.mime || 'File';
+        info.appendChild(name);
+        info.appendChild(meta);
+
+        const link = document.createElement('a');
+        link.className = 'file-download';
+        link.href = payload.data || payload.url || '#';
+        link.download = payload.name || 'download';
+        link.textContent = payload.url ? 'Open' : 'Download';
+        link.target = payload.url ? '_blank' : '';
+        link.rel = payload.url ? 'noopener' : '';
+        info.appendChild(link);
+
+        wrapper.appendChild(info);
+        bubble.appendChild(wrapper);
+        return payload.name || 'file';
+    }
+
+    bubble.textContent = payload.text || '';
+    return payload.text || '';
+}
+
 function addMessage(msg) {
     const isOut = msg.direction === 'out';
     const msgRoom = msg.room || state.room;
@@ -218,7 +338,8 @@ function addMessage(msg) {
     const groupKey = `${msg.direction}:${msg.peer_id}`;
     const bubble = document.createElement('div');
     bubble.className = `bubble ${isOut ? 'out' : 'in'}`;
-    bubble.textContent = msg.text;
+    const payload = parsePayload(msg.text);
+    const filterText = buildBubbleContent(bubble, payload);
     bubble.title = `${isOut ? 'You' : msg.peer_id.substring(0, 8)} - ${relativeTime(msg.ts)}`;
 
     let group = els.feed.lastElementChild;
@@ -226,24 +347,31 @@ function addMessage(msg) {
         group = document.createElement('div');
         group.className = isOut ? 'bubble-group out' : 'bubble-group';
         group.dataset.groupKey = groupKey;
-        group.dataset.text = msg.text.toLowerCase();
+        group.dataset.text = (filterText || '').toLowerCase();
 
         if (!isOut) {
             const meta = document.createElement('div');
             meta.className = 'bubble-meta';
-            meta.innerHTML = `<strong>${msg.peer_id.substring(0, 8)}</strong> - ${relativeTime(msg.ts)}`;
+            const label = peerLabel(msg.peer_id);
+            meta.innerHTML = `<strong>${label}</strong> - ${relativeTime(msg.ts)}`;
             group.appendChild(meta);
         }
 
         els.feed.appendChild(group);
     } else {
-        group.dataset.text += ` ${msg.text.toLowerCase()}`;
+        group.dataset.text += ` ${(filterText || '').toLowerCase()}`;
     }
 
     group.appendChild(bubble);
     state.lastGroupKey = groupKey;
 
     applyMessageFilter();
+
+    if (msg.direction === 'in' && msgRoom !== state.room && state.room !== 'all') {
+        state.unreadByRoom[msgRoom] = (state.unreadByRoom[msgRoom] || 0) + 1;
+        renderNav(state.rooms, state.peers);
+        updateUnreadTotals();
+    }
 
     if (state.autoScroll || isNearBottom()) {
         els.feed.scrollTop = els.feed.scrollHeight;
@@ -284,9 +412,16 @@ function switchRoom(room) {
     state.room = room;
     state.lastId = 0;
     state.lastGroupKey = null;
+    if (room === 'all') {
+        state.unreadByRoom = {};
+    } else {
+        state.unreadByRoom[room] = 0;
+    }
     els.feed.querySelectorAll('.bubble-group').forEach(node => node.remove());
     resetUnread();
     updateEmptyState();
+    updateUnreadTotals();
+    renderNav(state.rooms, state.peers);
     fetchState(true);
 }
 
@@ -302,8 +437,16 @@ async function fetchState(force = false) {
         state.peers = data.peers || [];
         renderNav(state.rooms, state.peers);
 
-        if (data.me && data.me.name && els.userName) {
-            els.userName.textContent = data.me.name;
+        if (data.me) {
+            if (data.me.name && els.userName) {
+                els.userName.textContent = data.me.name;
+            }
+            if (typeof data.me.nickname === 'string' && els.nicknameInput) {
+                const isEditing = document.activeElement === els.nicknameInput;
+                if (!isEditing) {
+                    els.nicknameInput.value = data.me.nickname;
+                }
+            }
         }
 
         if (data.interface && data.interface.current) {
@@ -317,17 +460,40 @@ async function fetchState(force = false) {
         if (data.messages && data.messages.length) {
             data.messages.forEach(addMessage);
             state.lastId = data.messages[data.messages.length - 1].id;
+            state.sidebarLastId = Math.max(state.sidebarLastId, state.lastId);
         }
     } finally {
         state.fetching = false;
     }
 }
 
-async function sendMessage(e) {
-    e.preventDefault();
-    const text = els.msg.value.trim();
-    if (!text) return;
+async function fetchSidebarState() {
+    if (state.room === 'all') return;
+    try {
+        const res = await fetch(`/api/state?after=${state.sidebarLastId}&room=all`);
+        if (!res.ok) return;
+        const data = await res.json();
 
+        state.rooms = data.rooms || state.rooms;
+        state.peers = data.peers || state.peers;
+        renderNav(state.rooms, state.peers);
+
+        if (data.messages && data.messages.length) {
+            data.messages.forEach(msg => {
+                if (msg.direction !== 'in') return;
+                const msgRoom = msg.room || msg.peer_id;
+                if (msgRoom === state.room) return;
+                state.unreadByRoom[msgRoom] = (state.unreadByRoom[msgRoom] || 0) + 1;
+            });
+            state.sidebarLastId = data.messages[data.messages.length - 1].id;
+            updateUnreadTotals();
+        }
+    } catch (err) {
+        return;
+    }
+}
+
+async function sendPayload(text) {
     registerPending(text, state.room);
     addMessage({
         direction: 'out',
@@ -338,15 +504,23 @@ async function sendMessage(e) {
         optimistic: true
     });
 
-    els.msg.value = '';
-    els.msg.style.height = 'auto';
-    els.charCount.textContent = '0';
-
     await fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room: state.room, text })
     });
+}
+
+async function sendMessage(e) {
+    e.preventDefault();
+    const text = els.msg.value.trim();
+    if (!text) return;
+
+    await sendPayload(text);
+
+    els.msg.value = '';
+    els.msg.style.height = 'auto';
+    els.charCount.textContent = '0';
 }
 
 function insertEmoji(emoji) {
@@ -359,6 +533,35 @@ function insertEmoji(emoji) {
     input.setSelectionRange(cursor, cursor);
     input.focus();
     input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+async function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data.error || 'Upload failed');
+    }
+    return data;
+}
+
+async function sendFile(file) {
+    try {
+        const uploaded = await uploadFile(file);
+        const payload = {
+            name: uploaded.name,
+            mime: uploaded.mime,
+            size: uploaded.size,
+            url: uploaded.url
+        };
+        await sendPayload(`FILE::${JSON.stringify(payload)}`);
+    } catch (err) {
+        showToast(err.message || 'Upload failed');
+    }
 }
 
 function renderEmojiPicker() {
@@ -375,11 +578,11 @@ function toggleEmojiPicker(force) {
     els.emojiPicker.classList.toggle('hidden', !shouldShow);
 }
 
-function toggleInterfaceMenu(force) {
-    if (!els.ifaceMenu) return;
-    const isHidden = els.ifaceMenu.classList.contains('hidden');
+function toggleSettingsPanel(force) {
+    if (!els.settingsPanel) return;
+    const isHidden = els.settingsPanel.classList.contains('hidden');
     const shouldShow = force !== undefined ? force : isHidden;
-    els.ifaceMenu.classList.toggle('hidden', !shouldShow);
+    els.settingsPanel.classList.toggle('hidden', !shouldShow);
 }
 
 function handleFeedScroll() {
@@ -452,6 +655,18 @@ els.feed.addEventListener('click', async e => {
     }
 });
 
+if (els.attachButton && els.fileInput) {
+    els.attachButton.addEventListener('click', () => {
+        els.fileInput.click();
+    });
+    els.fileInput.addEventListener('change', () => {
+        const file = els.fileInput.files && els.fileInput.files[0];
+        if (!file) return;
+        sendFile(file);
+        els.fileInput.value = '';
+    });
+}
+
 if (els.emojiToggle) {
     els.emojiToggle.addEventListener('click', () => {
         toggleEmojiPicker();
@@ -463,12 +678,19 @@ if (els.emojiPicker) {
         const button = e.target.closest('.emoji-btn');
         if (!button || !button.dataset.emoji) return;
         insertEmoji(button.dataset.emoji);
+        toggleEmojiPicker(false);
     });
 }
 
-if (els.ifaceButton) {
-    els.ifaceButton.addEventListener('click', () => {
-        toggleInterfaceMenu();
+if (els.settingsButton) {
+    els.settingsButton.addEventListener('click', () => {
+        toggleSettingsPanel();
+    });
+}
+
+if (els.settingsClose) {
+    els.settingsClose.addEventListener('click', () => {
+        toggleSettingsPanel(false);
     });
 }
 
@@ -478,7 +700,6 @@ if (els.ifaceMenu) {
         if (!button) return;
         const ip = button.dataset.ip;
         if (!ip) return;
-        toggleInterfaceMenu(false);
         if (confirm(`Switch interface to ${ip}?`)) {
             await fetch('/api/interface', {
                 method: 'POST',
@@ -506,7 +727,11 @@ if (els.nicknameSave && els.nicknameInput) {
         if (data.name && els.userName) {
             els.userName.textContent = data.name;
         }
-        els.nicknameInput.value = '';
+        if (typeof data.nickname === 'string') {
+            els.nicknameInput.value = data.nickname;
+        } else {
+            els.nicknameInput.value = '';
+        }
         showToast(nickname ? 'Nickname updated' : 'Nickname cleared');
     };
 
@@ -519,12 +744,20 @@ if (els.nicknameSave && els.nicknameInput) {
     });
 }
 
+if (els.createRoom) {
+    els.createRoom.addEventListener('click', () => {
+        showToast('Room creation coming soon');
+    });
+}
+
 document.addEventListener('click', e => {
-    if (els.emojiPicker && !els.emojiPicker.contains(e.target) && !els.emojiToggle?.contains(e.target)) {
+    const emojiToggleHit = els.emojiToggle && els.emojiToggle.contains(e.target);
+    if (els.emojiPicker && !els.emojiPicker.contains(e.target) && !emojiToggleHit) {
         toggleEmojiPicker(false);
     }
-    if (els.ifaceMenu && !els.ifaceMenu.contains(e.target) && !els.ifaceButton?.contains(e.target)) {
-        toggleInterfaceMenu(false);
+    const settingsToggleHit = els.settingsButton && els.settingsButton.contains(e.target);
+    if (els.settingsPanel && !els.settingsPanel.contains(e.target) && !settingsToggleHit) {
+        toggleSettingsPanel(false);
     }
 });
 
@@ -532,6 +765,17 @@ els.msg.addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = `${this.scrollHeight}px`;
     els.charCount.textContent = `${this.value.length}`;
+});
+
+els.msg.addEventListener('paste', e => {
+    if (!e.clipboardData || !e.clipboardData.items) return;
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find(item => item.type && item.type.startsWith('image/'));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    sendFile(file);
 });
 
 els.msg.addEventListener('keydown', e => {
@@ -546,7 +790,9 @@ els.form.addEventListener('submit', sendMessage);
 updateAutoScrollUI();
 updateScrollButton();
 updateEmptyState();
+updateUnreadTotals();
 renderEmojiPicker();
 loadInterfaces();
+setInterval(fetchSidebarState, 2000);
 setInterval(fetchState, 1000);
 fetchState(true);

@@ -35,7 +35,7 @@ def handle_command(line, discovery, chat):
             print("No peers discovered.")
         else:
             print("\nPeers:")
-            for peer_id, (ip, _, _) in peers.items():
+            for peer_id, (ip, _, _, _) in peers.items():
                 print(f"  {peer_id:<15} {ip}")
             print()
         return True

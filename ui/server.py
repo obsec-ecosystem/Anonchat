@@ -6,11 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
+from werkzeug.utils import secure_filename
 
 from core.network import list_ipv4_interfaces
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOAD_DIR = BASE_DIR / "uploads"
 
 
 @dataclass
@@ -50,6 +52,8 @@ class UIServer:
         self._messages: List[Message] = []
         self._last_id = 0
         self._lock = threading.Lock()
+
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
         self.app = Flask(
             __name__,
@@ -140,8 +144,9 @@ class UIServer:
                 "id": peer_id,
                 "ip": ip,
                 "last_seen": last_seen,
+                "nickname": nickname or "",
             }
-            for peer_id, (ip, last_seen, _) in peers.items()
+            for peer_id, (ip, last_seen, _, nickname) in peers.items()
         ]
 
     # ---------------- routes ----------------
@@ -178,13 +183,14 @@ class UIServer:
                 messages = [self._serialize_message(m) for m in msgs]
 
             peers = self._serialize_peers()
-            rooms = ["all"] + [p["id"] for p in peers]
+            rooms = ["all"]
 
             return jsonify(
                 {
                     "me": {
                         "id": self.identity.anon_id,
                         "name": self.identity.display_name(),
+                        "nickname": self.identity.nickname or "",
                     },
                     "rooms": rooms,
                     "peers": peers,
@@ -228,7 +234,13 @@ class UIServer:
                 return jsonify({"error": "Nickname too long (max 32)"}), 400
 
             self.identity.nickname = nickname or None
-            return jsonify({"ok": True, "name": self.identity.display_name()})
+            return jsonify(
+                {
+                    "ok": True,
+                    "name": self.identity.display_name(),
+                    "nickname": self.identity.nickname or "",
+                }
+            )
 
         @app.get("/api/interfaces")
         def api_interfaces():
@@ -258,6 +270,38 @@ class UIServer:
                 return jsonify({"ok": True, "ip": ip})
 
             return jsonify({"error": "Failed to switch interface"}), 500
+
+        @app.post("/api/upload")
+        def api_upload():
+            if "file" not in request.files:
+                return jsonify({"error": "Missing file"}), 400
+
+            file = request.files["file"]
+            if not file.filename:
+                return jsonify({"error": "Missing filename"}), 400
+
+            safe_name = secure_filename(file.filename)
+            if not safe_name:
+                return jsonify({"error": "Invalid filename"}), 400
+
+            timestamp = int(time.time())
+            target_name = f"{timestamp}_{safe_name}"
+            target_path = UPLOAD_DIR / target_name
+            file.save(target_path)
+
+            return jsonify(
+                {
+                    "ok": True,
+                    "name": safe_name,
+                    "size": target_path.stat().st_size,
+                    "mime": file.mimetype or "application/octet-stream",
+                    "url": f"/uploads/{target_name}",
+                }
+            )
+
+        @app.get("/uploads/<path:filename>")
+        def upload_serve(filename: str):
+            return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
 
 
 def run_ui_server(
