@@ -1,5 +1,10 @@
 # app/cli.py
 
+def print_banner(identity):
+    print(f"AnonChat started as: {identity.display_name()}")
+    print("Type /help to see available commands.\n")
+
+
 def print_help():
     print(
         "\nCommands:\n"
@@ -11,46 +16,48 @@ def print_help():
     )
 
 
-def show_peers(discovery):
-    peers = discovery.get_peers()
-    if not peers:
-        print("No peers discovered.")
-        return
+def handle_command(line, discovery, chat):
+    """
+    Handle a single CLI command.
+    Returns False if the app should exit.
+    """
+    if line in ("/quit", "/exit"):
+        return False
 
-    print("\nPeers:")
-    for peer_id, (ip, _) in peers.items():
-        print(f"  {peer_id:<15} {ip}")
-    print()
+    if line == "/help":
+        print_help()
+        return True
 
+    if line == "/peers":
+        peers = discovery.get_peers()
+        if not peers:
+            print("No peers discovered.")
+        else:
+            print("\nPeers:")
+            for peer_id, (ip, _) in peers.items():
+                print(f"  {peer_id:<15} {ip}")
+            print()
+        return True
 
-def send_all(discovery, transport, identity, port, message: str):
-    peers = discovery.get_peers()
-    if not peers:
-        print("No peers to send to.")
-        return
+    if line.startswith("/sendall "):
+        msg = line[len("/sendall "):]
+        sent = chat.send_to_all(msg)
+        print(f"Sent to {sent} peer(s).")
+        return True
 
-    for peer_id, (ip, _) in peers.items():
-        payload = f"{identity.anon_id}: {message}"
-        transport.send(payload, ip, port)
+    if line.startswith("/send "):
+        parts = line.split(maxsplit=2)
+        if len(parts) < 3:
+            print("Usage: /send <peer_id> <message>")
+            return True
 
-    print(f"Sent to {len(peers)} peer(s).")
+        _, peer_id, msg = parts
+        try:
+            chat.send_to_peer(peer_id, msg)
+            print(f"Sent to {peer_id}.")
+        except ValueError:
+            print(f"Unknown peer: {peer_id}")
+        return True
 
-
-def send_one(discovery, transport, identity, port, line: str):
-    parts = line.split(maxsplit=2)
-    if len(parts) < 3:
-        print("Usage: /send <peer_id> <message>")
-        return
-
-    _, peer_id, message = parts
-    peers = discovery.get_peers()
-
-    if peer_id not in peers:
-        print(f"Unknown peer: {peer_id}")
-        return
-
-    ip, _ = peers[peer_id]
-    payload = f"{identity.anon_id}: {message}"
-    transport.send(payload, ip, port)
-
-    print(f"Sent to {peer_id}.")
+    print("Unknown command. Type /help.")
+    return True

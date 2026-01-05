@@ -1,15 +1,14 @@
 # main.py
 
 from core.identity import Identity
-from core.transport import Transport
 from core.network import choose_interface_ip
+from core.transport import Transport
 from core.discovery import Discovery
 
+from app.chat import Chat
 from app.cli import (
-    print_help,
-    show_peers,
-    send_all,
-    send_one,
+    print_banner,
+    handle_command,
 )
 
 PORT = 54545
@@ -20,7 +19,7 @@ def main():
     # --- Identity ---
     identity = Identity()
 
-    # --- Network interface selection ---
+    # --- Interface selection ---
     bind_ip = choose_interface_ip()
     print(f"\n[*] Using interface IP: {bind_ip}\n")
 
@@ -40,8 +39,21 @@ def main():
     )
     discovery.start()
 
-    print(f"AnonChat started as: {identity.display_name()}")
-    print("Type /help to see available commands.\n")
+    # --- Chat ---
+    def on_message(sender_id: str, message: str):
+        print(f"\n[{sender_id}] {message}")
+        print("> ", end="", flush=True)
+
+    chat = Chat(
+        transport=transport,
+        discovery=discovery,
+        identity=identity,
+        port=PORT,
+    )
+    chat.start(on_message)
+
+    # --- CLI ---
+    print_banner(identity)
 
     try:
         while True:
@@ -49,32 +61,20 @@ def main():
             if not line:
                 continue
 
-            if line in ("/quit", "/exit"):
+            should_continue = handle_command(
+                line=line,
+                discovery=discovery,
+                chat=chat,
+            )
+
+            if not should_continue:
                 break
-
-            if line == "/help":
-                print_help()
-                continue
-
-            if line == "/peers":
-                show_peers(discovery)
-                continue
-
-            if line.startswith("/sendall "):
-                msg = line[len("/sendall "):]
-                send_all(discovery, transport, identity, PORT, msg)
-                continue
-
-            if line.startswith("/send "):
-                send_one(discovery, transport, identity, PORT, line)
-                continue
-
-            print("Unknown command. Type /help.")
 
     except KeyboardInterrupt:
         pass
     finally:
         print("\nExiting...")
+        chat.stop()
         discovery.stop()
         transport.close()
 
