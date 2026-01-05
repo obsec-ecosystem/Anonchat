@@ -1,6 +1,8 @@
 # app/chat.py
 
-import threading
+import os
+
+DEBUG = os.getenv("ANONCHAT_DEBUG") == "1"
 
 
 class Chat:
@@ -26,6 +28,7 @@ class Chat:
         self.identity = identity
         self.port = port
         self.running = False
+        self.on_message = None
 
     def start(self, on_message):
         """
@@ -33,15 +36,13 @@ class Chat:
 
         on_message(sender_id: str, message: str)
         """
+        self.on_message = on_message
         self.running = True
-        threading.Thread(
-            target=self._listen_loop,
-            args=(on_message,),
-            daemon=True
-        ).start()
+        self.discovery.set_enc_handler(self._handle_enc)
 
     def stop(self):
         self.running = False
+        self.discovery.set_enc_handler(None)
 
     def send_to_peer(self, peer_id: str, message: str):
         peers = self.discovery.get_peers()
@@ -70,37 +71,32 @@ class Chat:
 
     # ---------------- internal ----------------
 
-    def _listen_loop(self, on_message):
-        while self.running:
-            msg, _, _ = self.transport.recv()
-            parts = msg.strip().split(maxsplit=2)
+    def _handle_enc(self, sender_id: str, ciphertext: str, ip: str):
+        if not self.running:
+            return
 
-            # Expect: ENC sender_id ciphertext
-            if len(parts) != 3:
-                continue
+        # Ignore our own messages
+        if sender_id == self.identity.anon_id:
+            return
 
-            msg_type, sender_id, ciphertext = parts
+        peers = self.discovery.get_peers()
+        if sender_id not in peers:
+            if DEBUG:
+                print(f"[chat] drop ENC from {sender_id} ({ip}): unknown peer")
+            return
 
-            if msg_type != "ENC":
-                continue
+        _, _, sender_pub_key = peers[sender_id]
 
-            # Ignore our own messages
-            if sender_id == self.identity.anon_id:
-                continue
+        # Register peer key if needed
+        self.identity.crypto.register_peer(sender_id, sender_pub_key)
 
-            peers = self.discovery.get_peers()
-            if sender_id not in peers:
-                continue
+        try:
+            plaintext = self.identity.crypto.decrypt(sender_id, ciphertext)
+        except Exception:
+            # Decryption failed (tampered / wrong key)
+            if DEBUG:
+                print(f"[chat] drop ENC from {sender_id} ({ip}): decrypt failed")
+            return
 
-            _, _, sender_pub_key = peers[sender_id]
-
-            # Register peer key if needed
-            self.identity.crypto.register_peer(sender_id, sender_pub_key)
-
-            try:
-                plaintext = self.identity.crypto.decrypt(sender_id, ciphertext)
-            except Exception:
-                # Decryption failed (tampered / wrong key)
-                continue
-
-            on_message(sender_id, plaintext)
+        if self.on_message:
+            self.on_message(sender_id, plaintext)

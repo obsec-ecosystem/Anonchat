@@ -1,7 +1,10 @@
 # core/discovery.py
 
+import os
 import threading
 import time
+
+DEBUG = os.getenv("ANONCHAT_DEBUG") == "1"
 
 
 class Discovery:
@@ -28,6 +31,7 @@ class Discovery:
         # peer_id -> (ip, last_seen, pub_key)
         self.peers = {}
         self.running = False
+        self.enc_handler = None
 
     def start(self):
         self.running = True
@@ -41,6 +45,9 @@ class Discovery:
         self._cleanup()
         return dict(self.peers)
 
+    def set_enc_handler(self, handler):
+        self.enc_handler = handler
+
     # ---------------- internal ----------------
 
     def _broadcast_loop(self):
@@ -52,13 +59,26 @@ class Discovery:
     def _listen_loop(self):
         while self.running:
             msg, ip, _ = self.transport.recv()
-            parts = msg.strip().split()
+            if DEBUG:
+                print(f"[discovery] recv {ip}: {msg}")
+
+            parts = msg.strip().split(maxsplit=2)
 
             # Expect exactly: TYPE peer_id pub_key
             if len(parts) != 3:
+                if DEBUG:
+                    print(f"[discovery] drop malformed: {msg!r}")
                 continue
 
-            msg_type, peer_id, pub_key = parts
+            msg_type, peer_id, payload = parts
+
+            if msg_type == "ENC":
+                if self.enc_handler:
+                    self.enc_handler(peer_id, payload, ip)
+                elif DEBUG:
+                    print("[discovery] ENC handler not set; dropped")
+                self._cleanup()
+                continue
 
             # Ignore our own messages
             if peer_id == self.identity.anon_id:
@@ -67,6 +87,7 @@ class Discovery:
             now = time.time()
 
             if msg_type == "GM":
+                pub_key = payload
                 self.peers[peer_id] = (ip, now, pub_key)
 
                 # Reply directly
@@ -74,7 +95,12 @@ class Discovery:
                 self.transport.send(ack, ip, self.port)
 
             elif msg_type == "GM_ACK":
+                pub_key = payload
                 self.peers[peer_id] = (ip, now, pub_key)
+            else:
+                if DEBUG:
+                    print(f"[discovery] drop unknown type: {msg_type}")
+                continue
 
             self._cleanup()
 
