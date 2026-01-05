@@ -1,0 +1,61 @@
+<aside class="sidebar">
+    <div class="brand-header">
+        <div class="logo-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="brand-stack">
+            <div class="brand-text">AnonChat</div>
+            <div class="brand-subtext">Secure Mesh Relay</div>
+        </div>
+    </div>
+
+    <div class="sidebar-section sidebar-tools">
+        <label class="field">
+            <span class="field-icon">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            </span>
+            <input id="nav-filter" class="field-input" type="text" placeholder="Filter rooms or peers">
+        </label>
+        <div class="nickname-row">
+            <label class="field nickname-field">
+                <span class="field-icon">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <input id="nickname-input" class="field-input" type="text" placeholder="Set nickname">
+            </label>
+            <button id="nickname-save" class="ghost-btn small-btn" type="button">Update</button>
+        </div>
+        <div class="mini-cards">
+            <div class="mini-card">
+                <div class="mini-label">You</div>
+                <div class="mini-value mono">{{ my_id[:8] }}...</div>
+            </div>
+            <div class="mini-card">
+                <div class="mini-label">Interface</div>
+                <div class="mini-value" id="current-interface">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="nav-scroller">
+        <div class="nav-section">
+            <div class="nav-section-title">Rooms</div>
+            <div id="rooms-list"></div>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Direct Messages</div>
+            <div id="peers-list"></div>
+        </div>
+    </nav>
+
+    <div class="user-bar">
+        <div class="user-info">
+            <div id="user-name" class="user-name">{{ display_name }}</div>
+            <div class="user-status" id="connection-status">Online</div>
+        </div>
+        <div class="interface-wrap">
+            <button id="interface-button" class="interface-btn" type="button">Switch</button>
+            <div id="interface-menu" class="interface-menu hidden" role="menu" aria-label="Network interfaces"></div>
+        </div>
+    </div>
+</aside>

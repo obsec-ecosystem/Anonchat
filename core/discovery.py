@@ -53,12 +53,21 @@ class Discovery:
     def _broadcast_loop(self):
         while self.running:
             msg = f"GM {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
-            self.transport.send(msg, self.broadcast_ip, self.port)
+            try:
+                self.transport.send(msg, self.broadcast_ip, self.port)
+            except OSError:
+                if not self.running:
+                    break
             time.sleep(self.GM_INTERVAL)
 
     def _listen_loop(self):
         while self.running:
-            msg, ip, _ = self.transport.recv()
+            try:
+                msg, ip, _ = self.transport.recv()
+            except OSError:
+                if not self.running:
+                    break
+                continue
             if DEBUG:
                 print(f"[discovery] recv {ip}: {msg}")
 

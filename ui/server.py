@@ -1,5 +1,3 @@
-# ui/server.py
-
 from __future__ import annotations
 
 import threading
@@ -9,6 +7,8 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from flask import Flask, jsonify, render_template, request
+
+from core.network import list_ipv4_interfaces
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,14 +28,24 @@ class UIServer:
     Thin Flask UI layer.
     - No transport
     - No crypto
-    - No discovery logic
+    - No discovery ownership
     """
 
-    def __init__(self, chat, discovery, identity, upstream_on_message=None):
+    def __init__(
+        self,
+        chat,
+        discovery,
+        identity,
+        upstream_on_message: Optional[Callable] = None,
+        on_set_interface: Optional[Callable[[str], bool]] = None,
+    ):
         self.chat = chat
         self.discovery = discovery
         self.identity = identity
         self.upstream_on_message = upstream_on_message
+        self.on_set_interface = on_set_interface
+
+        self.current_ip: Optional[str] = None
 
         self._messages: List[Message] = []
         self._last_id = 0
@@ -58,11 +68,25 @@ class UIServer:
                 "port": port,
                 "debug": False,
                 "use_reloader": False,
+                "threaded": True,
             },
             daemon=True,
         )
         thread.start()
         return thread
+
+    def attach(self, chat, discovery):
+        """
+        Swap chat/discovery references (used after interface switch).
+        """
+        with self._lock:
+            self.chat = chat
+            self.discovery = discovery
+        return self
+
+    def set_current_ip(self, ip: str):
+        self.current_ip = ip
+        return self
 
     # ---------------- message bookkeeping ----------------
 
@@ -85,10 +109,9 @@ class UIServer:
 
     def on_message(self, sender_id: str, message: str):
         """
-        Hook passed to chat.start().
-        Receives decrypted incoming messages.
+        Hook passed into chat.start().
+        Receives decrypted inbound messages.
         """
-        # Incoming messages are always peer-specific rooms
         self._store_message("in", sender_id, sender_id, message)
 
         if self.upstream_on_message:
@@ -100,42 +123,48 @@ class UIServer:
         return {
             "id": msg.id,
             "direction": msg.direction,
+            "room": msg.room,
             "peer_id": msg.peer_id,
             "text": msg.text,
             "ts": msg.ts,
+            "iso": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(msg.ts)),
         }
 
     def _serialize_peers(self) -> List[Dict]:
+        if not self.discovery:
+            return []
+
         peers = self.discovery.get_peers()
-        out = []
-        for peer_id, (ip, last_seen, _) in peers.items():
-            out.append(
-                {
-                    "id": peer_id,
-                    "ip": ip,
-                    "last_seen": last_seen,
-                }
-            )
-        return out
+        return [
+            {
+                "id": peer_id,
+                "ip": ip,
+                "last_seen": last_seen,
+            }
+            for peer_id, (ip, last_seen, _) in peers.items()
+        ]
 
     # ---------------- routes ----------------
 
     def _configure_routes(self):
         app = self.app
 
-        @app.route("/")
+        @app.get("/")
         def index():
-            return render_template("index.html")
+            return render_template(
+                "index.html",
+                my_id=self.identity.anon_id,
+                display_name=self.identity.display_name(),
+            )
 
         @app.get("/api/state")
         def api_state():
-            after = request.args.get("after", "0")
-            room = request.args.get("room", "all")
-
             try:
-                after_id = int(after)
+                after_id = int(request.args.get("after", "0"))
             except ValueError:
                 after_id = 0
+
+            room = (request.args.get("room") or "all").strip()
 
             with self._lock:
                 if room == "all":
@@ -160,11 +189,17 @@ class UIServer:
                     "rooms": rooms,
                     "peers": peers,
                     "messages": messages,
+                    "interface": {
+                        "current": self.current_ip,
+                    },
                 }
             )
 
         @app.post("/api/send")
         def api_send():
+            if not self.chat:
+                return jsonify({"error": "Chat not ready"}), 503
+
             payload = request.get_json(silent=True) or {}
             room = (payload.get("room") or "all").strip()
             text = (payload.get("text") or "").strip()
@@ -184,6 +219,46 @@ class UIServer:
             except ValueError:
                 return jsonify({"error": f"Unknown peer: {room}"}), 400
 
+        @app.post("/api/nickname")
+        def api_nickname():
+            payload = request.get_json(silent=True) or {}
+            nickname = (payload.get("nickname") or "").strip()
+
+            if len(nickname) > 32:
+                return jsonify({"error": "Nickname too long (max 32)"}), 400
+
+            self.identity.nickname = nickname or None
+            return jsonify({"ok": True, "name": self.identity.display_name()})
+
+        @app.get("/api/interfaces")
+        def api_interfaces():
+            return jsonify(
+                {
+                    "interfaces": [
+                        {"name": name, "ip": ip}
+                        for name, ip in list_ipv4_interfaces()
+                    ]
+                }
+            )
+
+        @app.post("/api/interface")
+        def api_set_interface():
+            payload = request.get_json(silent=True) or {}
+            ip = (payload.get("ip") or "").strip()
+
+            if not ip:
+                return jsonify({"error": "Missing ip"}), 400
+
+            if not self.on_set_interface:
+                return jsonify({"error": "Interface switching not supported"}), 501
+
+            ok = self.on_set_interface(ip)
+            if ok:
+                self.current_ip = ip
+                return jsonify({"ok": True, "ip": ip})
+
+            return jsonify({"error": "Failed to switch interface"}), 500
+
 
 def run_ui_server(
     chat,
@@ -192,6 +267,7 @@ def run_ui_server(
     upstream_on_message: Optional[Callable] = None,
     host: str = "127.0.0.1",
     port: int = 5000,
+    on_set_interface: Optional[Callable[[str], bool]] = None,
 ) -> UIServer:
     """
     Convenience helper.
@@ -201,6 +277,7 @@ def run_ui_server(
         discovery=discovery,
         identity=identity,
         upstream_on_message=upstream_on_message,
+        on_set_interface=on_set_interface,
     )
     ui.run(host=host, port=port)
     return ui

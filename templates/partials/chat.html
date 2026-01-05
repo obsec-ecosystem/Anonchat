@@ -1,0 +1,55 @@
+<main class="chat-main">
+    <header class="chat-header">
+        <div class="header-left">
+            <div class="header-title" id="current-room-name">Global Lobby</div>
+            <div class="header-subtitle" id="peer-count">Connecting...</div>
+        </div>
+        <div class="header-right">
+            <div class="status-pill" title="Connection status">
+                <span id="status-indicator" class="status-dot"></span>
+                <span class="status-label" id="status-label">Syncing</span>
+            </div>
+            <button id="auto-scroll" class="ghost-btn" type="button">Auto-scroll: On</button>
+            <button id="clear-feed" class="ghost-btn" type="button">Clear</button>
+        </div>
+    </header>
+
+    <div class="toolbar">
+        <label class="field toolbar-field">
+            <span class="field-icon">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            </span>
+            <input id="message-filter" class="field-input" type="text" placeholder="Search messages">
+        </label>
+        <div class="room-chip" id="room-chip">Global</div>
+    </div>
+
+    <div id="feed" class="feed">
+        <div id="empty-state" class="empty-state">
+            <div class="empty-title">No messages yet</div>
+            <div class="empty-subtitle">Say hello or switch to a peer to begin.</div>
+        </div>
+    </div>
+
+    <button id="scroll-to-bottom" class="scroll-to-bottom" type="button">
+        Jump to latest
+        <span id="unread-count" class="unread-badge">0</span>
+    </button>
+
+    <footer class="composer">
+        <form id="send-form" class="input-pill">
+            <textarea id="message" class="message-input" rows="1" placeholder="Write a message..."></textarea>
+            <button id="emoji-toggle" class="emoji-btn emoji-toggle" type="button" aria-label="Open emoji picker">😊</button>
+            <button type="submit" class="send-btn" aria-label="Send message">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+        </form>
+        <div id="emoji-picker" class="emoji-picker hidden" role="dialog" aria-label="Emoji picker"></div>
+        <div class="composer-meta">
+            <span class="meta-hint">Enter to send, Shift+Enter for a new line</span>
+            <span id="char-count" class="meta-count">0</span>
+        </div>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</main>

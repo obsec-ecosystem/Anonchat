@@ -44,3 +44,13 @@ def choose_interface_ip() -> str:
             pass
 
         print("Invalid selection, try again.\n")
+
+
+def default_interface_ip() -> str:
+    """
+    Returns the first available interface IP (for auto mode).
+    """
+    interfaces = list_ipv4_interfaces()
+    if not interfaces:
+        raise RuntimeError("No IPv4 interfaces found")
+    return interfaces[0][1]
