@@ -1,59 +1,81 @@
 # main.py
 
-import threading
-
 from core.identity import Identity
 from core.transport import Transport
 from core.network import choose_interface_ip
+from core.discovery import Discovery
+
+from app.cli import (
+    print_help,
+    show_peers,
+    send_all,
+    send_one,
+)
 
 PORT = 54545
 BROADCAST_IP = "255.255.255.255"
 
 
-def listen_loop(transport: Transport, identity: Identity):
-    print("[*] Listening for incoming messages...")
-    while True:
-        msg, ip, port = transport.recv()
-
-        # Ignore our own messages
-        if msg.startswith(identity.anon_id):
-            continue
-
-        print(f"\n[from {ip}:{port}] {msg}")
-        print("> ", end="", flush=True)
-
-
 def main():
+    # --- Identity ---
     identity = Identity()
 
+    # --- Network interface selection ---
     bind_ip = choose_interface_ip()
     print(f"\n[*] Using interface IP: {bind_ip}\n")
 
-    transport = Transport(port=PORT, bind_ip=bind_ip)
+    # --- Transport ---
+    transport = Transport(
+        port=PORT,
+        bind_ip=bind_ip,
+        broadcast=True,
+    )
+
+    # --- Discovery ---
+    discovery = Discovery(
+        transport=transport,
+        identity=identity,
+        broadcast_ip=BROADCAST_IP,
+        port=PORT,
+    )
+    discovery.start()
 
     print(f"AnonChat started as: {identity.display_name()}")
-    print("Type a message and press Enter to broadcast it.")
-    print("Ctrl+C to quit.\n")
-
-    t = threading.Thread(
-        target=listen_loop,
-        args=(transport, identity),
-        daemon=True
-    )
-    t.start()
+    print("Type /help to see available commands.\n")
 
     try:
         while True:
-            msg = input("> ").strip()
-            if not msg:
+            line = input("> ").strip()
+            if not line:
                 continue
 
-            payload = f"{identity.anon_id}: {msg}"
-            transport.send(payload, BROADCAST_IP, PORT)
+            if line in ("/quit", "/exit"):
+                break
+
+            if line == "/help":
+                print_help()
+                continue
+
+            if line == "/peers":
+                show_peers(discovery)
+                continue
+
+            if line.startswith("/sendall "):
+                msg = line[len("/sendall "):]
+                send_all(discovery, transport, identity, PORT, msg)
+                continue
+
+            if line.startswith("/send "):
+                send_one(discovery, transport, identity, PORT, line)
+                continue
+
+            print("Unknown command. Type /help.")
 
     except KeyboardInterrupt:
-        print("\nExiting...")
+        pass
     finally:
+        print("\nExiting...")
+        discovery.stop()
         transport.close()
 
 
