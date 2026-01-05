@@ -4,29 +4,42 @@ import threading
 
 from core.identity import Identity
 from core.transport import Transport
+from core.network import choose_interface_ip
 
 PORT = 54545
 BROADCAST_IP = "255.255.255.255"
 
 
-def listen_loop(transport: Transport):
+def listen_loop(transport: Transport, identity: Identity):
     print("[*] Listening for incoming messages...")
     while True:
         msg, ip, port = transport.recv()
+
+        # Ignore our own messages
+        if msg.startswith(identity.anon_id):
+            continue
+
         print(f"\n[from {ip}:{port}] {msg}")
         print("> ", end="", flush=True)
 
 
 def main():
     identity = Identity()
-    transport = Transport(port=PORT)
+
+    bind_ip = choose_interface_ip()
+    print(f"\n[*] Using interface IP: {bind_ip}\n")
+
+    transport = Transport(port=PORT, bind_ip=bind_ip)
 
     print(f"AnonChat started as: {identity.display_name()}")
-    print("Type a message and press Enter to broadcast it on the LAN.")
+    print("Type a message and press Enter to broadcast it.")
     print("Ctrl+C to quit.\n")
 
-    # Start listener thread
-    t = threading.Thread(target=listen_loop, args=(transport,), daemon=True)
+    t = threading.Thread(
+        target=listen_loop,
+        args=(transport, identity),
+        daemon=True
+    )
     t.start()
 
     try:
