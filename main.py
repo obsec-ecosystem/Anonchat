@@ -10,6 +10,7 @@ from app.cli import (
     print_banner,
     handle_command,
 )
+from ui.server import run_ui_server
 
 PORT = 54545
 BROADCAST_IP = "255.255.255.255"
@@ -50,7 +51,16 @@ def main():
         identity=identity,
         port=PORT,
     )
-    chat.start(on_message)
+
+    # --- UI server (non-blocking) ---
+    ui = run_ui_server(
+        chat=chat,
+        discovery=discovery,
+        identity=identity,
+        upstream_on_message=on_message,  # keep CLI printing
+    )
+
+    chat.start(ui.on_message)
 
     # --- CLI ---
     print_banner(identity)

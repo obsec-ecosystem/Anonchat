@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnonChat - Secure Messaging</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1a1a1a;
+            --surface: #1f1f1f;
+            --surface-elevated: #252525;
+            --accent: #6366f1;
+            --accent-hover: #7c3aed;
+            --accent-light: rgba(99, 102, 241, 0.1);
+            --success: #10b981;
+            --text-primary: #ffffff;
+            --text-secondary: #a3a3a3;
+            --text-tertiary: #737373;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --shadow: rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .user-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid var(--border);
+        }
+
+        .user-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-tertiary);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .user-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .user-id {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', 'Monaco', monospace;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-tertiary);
+            margin-bottom: 10px;
+            padding: 0 8px;
+        }
+
+        .room-list, .peer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .room-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .room-item:hover {
+            background: var(--surface);
+            color: var(--text-primary);
+        }
+
+        .room-item.active {
+            background: var(--accent-light);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .room-icon {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-tertiary);
+        }
+
+        .room-item.active .room-icon {
+            background: var(--accent);
+        }
+
+        .peer-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid transparent;
+        }
+
+        .peer-item:hover {
+            background: var(--surface);
+            border-color: var(--border);
+        }
+
+        .peer-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .peer-status.online {
+            background: var(--success);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+
+        .peer-status.offline {
+            background: var(--text-tertiary);
+        }
+
+        .peer-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .peer-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .peer-meta {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+        }
+
+        .chat-header {
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-title-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--surface-elevated);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border);
+        }
+
+        .chat-title {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: var(--surface);
+            font-size: 12px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .message.outgoing {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .message.outgoing .message-avatar {
+            background: var(--surface-elevated);
+            border: 1px solid var(--border);
+        }
+
+        .message-content {
+            max-width: 60%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .message.outgoing .message-header {
+            flex-direction: row-reverse;
+        }
+
+        .message-sender {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .message.outgoing .message-bubble {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Input Area */
+        .input-container {
+            padding: 20px 32px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .textarea-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .message-input {
+            width: 100%;
+            min-height: 48px;
+            max-height: 150px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .message-input:focus {
+            border-color: var(--accent);
+            background: var(--surface-elevated);
+        }
+
+        .message-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .send-button {
+            height: 48px;
+            padding: 0 24px;
+            border-radius: 12px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .send-button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .send-button:active {
+            transform: translateY(0);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--surface);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--surface-elevated);
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+            .messages-container {
+                padding: 16px;
+            }
+            .input-container {
+                padding: 16px;
+            }
+            .message-content {
+                max-width: 80%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">A</div>
+                    <div class="logo-text">AnonChat</div>
+                </div>
+                
+                <div class="user-card">
+                    <div class="user-label">Your Identity</div>
+                    <div class="user-name" id="display-name">Anonymous User</div>
+                    <div class="user-id" id="my-id">Loading...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="section">
+                    <div class="section-title">Channels</div>
+                    <div class="room-list" id="rooms"></div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Active Peers</div>
+                    <div class="peer-list" id="peers"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="chat-header">
+                <div class="chat-title-section">
+                    <div class="chat-icon">
+                        <span id="room-icon">📢</span>
+                    </div>
+                    <div>
+                        <div class="chat-title" id="room-title">All Peers</div>
+                    </div>
+                </div>
+                <div class="status-badge">
+                    <div class="status-dot"></div>
+                    <span id="status">Connecting...</span>
+                </div>
+            </header>
+
+            <div class="messages-container" id="feed"></div>
+
+            <div class="input-container">
+                <form class="input-wrapper" id="send-form">
+                    <div class="textarea-container">
+                        <textarea 
+                            class="message-input" 
+                            id="message" 
+                            placeholder="Type your message..."
+                            rows="1"
+                        ></textarea>
+                    </div>
+                    <button type="submit" class="send-button">Send</button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const feedEl = document.getElementById('feed');
+        const roomsEl = document.getElementById('rooms');
+        const peersEl = document.getElementById('peers');
+        const roomTitleEl = document.getElementById('room-title');
+        const roomIconEl = document.getElementById('room-icon');
+        const statusEl = document.getElementById('status');
+        const formEl = document.getElementById('send-form');
+        const messageEl = document.getElementById('message');
+        const displayNameEl = document.getElementById('display-name');
+        const myIdEl = document.getElementById('my-id');
+
+        const state = {
+            room: 'all',
+            lastId: 0,
+            rooms: [],
+            me: null
+        };
+
+        function relativeTime(ts) {
+            const seconds = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+            if (seconds < 10) return 'just now';
+            if (seconds < 60) return `${seconds}s ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        function getInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        }
+
+        function scrollToBottom() {
+            feedEl.scrollTop = feedEl.scrollHeight;
+        }
+
+        function renderRooms(rooms) {
+            state.rooms = rooms;
+            roomsEl.innerHTML = '';
+            rooms.forEach(room => {
+                const div = document.createElement('div');
+                div.className = `room-item ${room === state.room ? 'active' : ''}`;
+                div.innerHTML = `
+                    <div class="room-icon"></div>
+                    ${room === 'all' ? 'All Peers' : room.slice(0, 12) + '...'}
+                `;
+                div.onclick = () => switchRoom(room);
+                roomsEl.appendChild(div);
+            });
+        }
+
+        function renderPeers(peers) {
+            peersEl.innerHTML = '';
+            if (peers.length === 0) {
+                peersEl.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-tertiary); font-size: 12px;">No peers online</div>';
+                statusEl.textContent = 'Waiting for peers...';
+                return;
+            }
+
+            peers.forEach(peer => {
+                const online = (Date.now() / 1000 - peer.last_seen) < 8;
+                const div = document.createElement('div');
+                div.className = 'peer-item';
+                div.innerHTML = `
+                    <div class="peer-status ${online ? 'online' : 'offline'}"></div>
+                    <div class="peer-info">
+                        <div class="peer-name">${peer.id}</div>
+                        <div class="peer-meta">${peer.ip} · ${relativeTime(peer.last_seen)}</div>
+                    </div>
+                `;
+                div.onclick = () => switchRoom(peer.id);
+                peersEl.appendChild(div);
+            });
+            
+            const onlineCount = peers.filter(p => (Date.now() / 1000 - p.last_seen) < 8).length;
+            statusEl.textContent = `${onlineCount} online`;
+        }
+
+        function addMessage(msg) {
+            const isOutgoing = msg.direction === 'out';
+            const div = document.createElement('div');
+            div.className = `message ${isOutgoing ? 'outgoing' : 'incoming'}`;
+            
+            const sender = isOutgoing ? 'You' : msg.peer_id;
+            const initials = getInitials(sender);
+            
+            div.innerHTML = `
+                <div class="message-avatar">${initials}</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-sender">${sender}</span>
+                        <span>${new Date(msg.ts * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    <div class="message-bubble">${escapeHtml(msg.text)}</div>
+                </div>
+            `;
+            
+            feedEl.appendChild(div);
+            scrollToBottom();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function switchRoom(room) {
+            if (room === state.room) return;
+            state.room = room;
+            
+            if (room === 'all') {
+                roomTitleEl.textContent = 'All Peers';
+                roomIconEl.textContent = '📢';
+            } else {
+                roomTitleEl.textContent = room;
+                roomIconEl.textContent = '💬';
+            }
+            
+            state.lastId = 0;
+            feedEl.innerHTML = '';
+            fetchState(true);
+        }
+
+        async function fetchState(force = false) {
+            try {
+                const res = await fetch(`/api/state?after=${force ? 0 : state.lastId}&room=${encodeURIComponent(state.room)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                if (data.me) {
+                    state.me = data.me;
+                    displayNameEl.textContent = data.me.name;
+                    myIdEl.textContent = data.me.id;
+                }
+
+                renderRooms(data.rooms);
+                renderPeers(data.peers);
+
+                if (data.messages && data.messages.length) {
+                    data.messages.forEach(addMessage);
+                    state.lastId = data.messages[data.messages.length - 1].id;
+                }
+            } catch (err) {
+                console.error('Failed to fetch state:', err);
+            }
+        }
+
+        async function sendMessage(evt) {
+            evt.preventDefault();
+            const text = messageEl.value.trim();
+            if (!text) return;
+
+            try {
+                const res = await fetch('/api/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ room: state.room, text })
+                });
+
+                if (res.ok) {
+                    messageEl.value = '';
+                    messageEl.style.height = 'auto';
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || 'Failed to send message');
+                }
+            } catch (err) {
+                console.error('Failed to send:', err);
+                alert('Failed to send message');
+            }
+        }
+
+        // Auto-resize textarea
+        messageEl.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+
+        // Enter to send, Shift+Enter for newline
+        messageEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                formEl.requestSubmit();
+            }
+        });
+
+        formEl.addEventListener('submit', sendMessage);
+
+        // Poll for updates
+        setInterval(() => fetchState(false), 1800);
+        fetchState(true);
+    </script>
+</body>
+</html>
