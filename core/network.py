@@ -53,7 +53,19 @@ def default_interface_ip() -> str:
     interfaces = list_ipv4_interfaces()
     if not interfaces:
         raise RuntimeError("No IPv4 interfaces found")
+    def is_usable(ip: str) -> bool:
+        if ip.startswith("127."):
+            return False
+        if ip.startswith("169.254."):
+            return False
+        return True
+
     for name, ip in interfaces:
-        if "wifi" in name.lower():
+        if "wifi" in name.lower() and is_usable(ip):
             return ip
+
+    for _, ip in interfaces:
+        if is_usable(ip):
+            return ip
+
     return interfaces[0][1]
