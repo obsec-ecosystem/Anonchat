@@ -53,4 +53,7 @@ def default_interface_ip() -> str:
     interfaces = list_ipv4_interfaces()
     if not interfaces:
         raise RuntimeError("No IPv4 interfaces found")
+    for name, ip in interfaces:
+        if "wifi" in name.lower():
+            return ip
     return interfaces[0][1]

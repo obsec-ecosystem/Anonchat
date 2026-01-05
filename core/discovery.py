@@ -15,6 +15,7 @@ class Discovery:
     Protocol:
       GM <peer_id> <pub_key>
       GM_ACK <peer_id> <pub_key>
+      NICK <peer_id> <nickname_b64>
 
     Keeps an in-memory table:
       peer_id -> (ip, last_seen, pub_key)
@@ -53,12 +54,14 @@ class Discovery:
 
     def _broadcast_loop(self):
         while self.running:
-            nickname = self.identity.nickname or ""
-            nick_b64 = base64.urlsafe_b64encode(nickname.encode("utf-8")).decode("ascii")
-            payload = f"{self.identity.crypto.public_key_b64}|{nick_b64}"
-            msg = f"GM {self.identity.anon_id} {payload}"
+            msg = f"GM {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
             try:
                 self.transport.send(msg, self.broadcast_ip, self.port)
+                nickname = self.identity.nickname or ""
+                if nickname:
+                    nick_b64 = base64.urlsafe_b64encode(nickname.encode("utf-8")).decode("ascii")
+                    nick_msg = f"NICK {self.identity.anon_id} {nick_b64}"
+                    self.transport.send(nick_msg, self.broadcast_ip, self.port)
             except OSError:
                 if not self.running:
                     break
@@ -104,11 +107,13 @@ class Discovery:
                 self.peers[peer_id] = (ip, now, pub_key, nick)
 
                 if msg_type == "GM":
-                    nickname = self.identity.nickname or ""
-                    nick_b64 = base64.urlsafe_b64encode(nickname.encode("utf-8")).decode("ascii")
-                    ack_payload = f"{self.identity.crypto.public_key_b64}|{nick_b64}"
-                    ack = f"GM_ACK {self.identity.anon_id} {ack_payload}"
+                    ack = f"GM_ACK {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
                     self.transport.send(ack, ip, self.port)
+            elif msg_type == "NICK":
+                if peer_id in self.peers:
+                    ip, _, pub_key, _ = self.peers[peer_id]
+                    nick = self._parse_nick(payload)
+                    self.peers[peer_id] = (ip, now, pub_key, nick)
             else:
                 if DEBUG:
                     print(f"[discovery] drop unknown type: {msg_type}")
@@ -137,3 +142,9 @@ class Discovery:
         except Exception:
             nick = None
         return pub_key, nick
+
+    def _parse_nick(self, payload: str):
+        try:
+            return base64.urlsafe_b64decode(payload.encode("ascii")).decode("utf-8")
+        except Exception:
+            return None
