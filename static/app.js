@@ -22,7 +22,8 @@ const state = {
     interfaces: [],
     pendingOut: [],
     unreadByRoom: {},
-    sidebarLastId: 0
+    sidebarLastId: 0,
+    notifications: []
 };
 
 const els = {
@@ -61,6 +62,8 @@ const els = {
     homePeerCount: document.getElementById('home-peer-count'),
     homeNearby: document.getElementById('home-nearby'),
     homeInterface: document.getElementById('home-interface'),
+    homeUnread: document.getElementById('home-unread'),
+    homeNotifications: document.getElementById('home-notifications'),
     toolbar: document.querySelector('.toolbar'),
     composer: document.querySelector('.composer')
 };
@@ -96,6 +99,9 @@ function updateUnreadTotals() {
         document.title = `(${total}) AnonChat // Secure`;
     } else {
         document.title = 'AnonChat // Secure';
+    }
+    if (els.homeUnread) {
+        els.homeUnread.textContent = `${total}`;
     }
 }
 
@@ -182,6 +188,37 @@ function updateHomeSummary(peers) {
             })
             .join('');
     }
+    renderHomeNotifications();
+}
+
+function addNotification(msg) {
+    const label = peerLabel(msg.peer_id);
+    const roomName = msg.room === 'all' ? 'Home' : label;
+    state.notifications.unshift({
+        room: msg.room,
+        label: roomName,
+        text: msg.text,
+        ts: msg.ts
+    });
+    if (state.notifications.length > 6) {
+        state.notifications.pop();
+    }
+    renderHomeNotifications();
+}
+
+function renderHomeNotifications() {
+    if (!els.homeNotifications) return;
+    const items = state.notifications;
+    if (!items.length) {
+        els.homeNotifications.innerHTML = '<div class="nav-empty">No new notifications</div>';
+        return;
+    }
+    els.homeNotifications.innerHTML = items
+        .map(note => {
+            const preview = String(note.text || '').slice(0, 48);
+            return `<div class="summary-note"><strong>${note.label}</strong><span>${preview}</span></div>`;
+        })
+        .join('');
 }
 
 function peerLabel(peerId) {
@@ -417,6 +454,7 @@ function addMessage(msg) {
         state.unreadByRoom[msgRoom] = (state.unreadByRoom[msgRoom] || 0) + 1;
         renderNav(state.rooms, state.peers);
         updateUnreadTotals();
+        addNotification(msg);
     }
 
     if (state.autoScroll || isNearBottom()) {
@@ -460,6 +498,7 @@ function switchRoom(room) {
     state.lastGroupKey = null;
     if (room === 'all') {
         state.unreadByRoom = {};
+        state.notifications = [];
     } else {
         state.unreadByRoom[room] = 0;
     }
@@ -531,6 +570,7 @@ async function fetchSidebarState() {
                 const msgRoom = msg.room || msg.peer_id;
                 if (msgRoom === state.room) return;
                 state.unreadByRoom[msgRoom] = (state.unreadByRoom[msgRoom] || 0) + 1;
+                addNotification(msg);
             });
             state.sidebarLastId = data.messages[data.messages.length - 1].id;
             updateUnreadTotals();

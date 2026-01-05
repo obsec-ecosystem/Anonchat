@@ -605,6 +605,26 @@ body::after {
     font-size: 11px;
 }
 
+.summary-note {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.summary-note strong {
+    font-weight: 600;
+}
+
+.summary-note span {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
 /* Messages */
 .feed {
     flex: 1;

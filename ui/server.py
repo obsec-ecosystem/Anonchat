@@ -289,13 +289,24 @@ class UIServer:
             target_path = UPLOAD_DIR / target_name
             file.save(target_path)
 
+            host = request.host.split(":")[0]
+            port = request.host.split(":")[1] if ":" in request.host else "80"
+            scheme = request.scheme or "http"
+            ip = self.current_ip or host
+            if ip.startswith("127.") or ip == "localhost":
+                for _, candidate in list_ipv4_interfaces():
+                    if not candidate.startswith("127."):
+                        ip = candidate
+                        break
+            url = f"{scheme}://{ip}:{port}/uploads/{target_name}"
+
             return jsonify(
                 {
                     "ok": True,
                     "name": safe_name,
                     "size": target_path.stat().st_size,
                     "mime": file.mimetype or "application/octet-stream",
-                    "url": f"/uploads/{target_name}",
+                    "url": url,
                 }
             )
 
