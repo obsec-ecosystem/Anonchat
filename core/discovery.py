@@ -9,11 +9,11 @@ class Discovery:
     Simple Zeroconf-style peer discovery.
 
     Protocol:
-      GM <peer_id>
-      GM_ACK <peer_id>
+      GM <peer_id> <pub_key>
+      GM_ACK <peer_id> <pub_key>
 
     Keeps an in-memory table:
-      peer_id -> (ip, last_seen)
+      peer_id -> (ip, last_seen, pub_key)
     """
 
     GM_INTERVAL = 3        # seconds
@@ -25,7 +25,8 @@ class Discovery:
         self.broadcast_ip = broadcast_ip
         self.port = port
 
-        self.peers = {}  # peer_id -> (ip, last_seen)
+        # peer_id -> (ip, last_seen, pub_key)
+        self.peers = {}
         self.running = False
 
     def start(self):
@@ -44,7 +45,7 @@ class Discovery:
 
     def _broadcast_loop(self):
         while self.running:
-            msg = f"GM {self.identity.anon_id}"
+            msg = f"GM {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
             self.transport.send(msg, self.broadcast_ip, self.port)
             time.sleep(self.GM_INTERVAL)
 
@@ -53,10 +54,11 @@ class Discovery:
             msg, ip, _ = self.transport.recv()
             parts = msg.strip().split()
 
-            if len(parts) != 2:
+            # Expect exactly: TYPE peer_id pub_key
+            if len(parts) != 3:
                 continue
 
-            msg_type, peer_id = parts
+            msg_type, peer_id, pub_key = parts
 
             # Ignore our own messages
             if peer_id == self.identity.anon_id:
@@ -65,14 +67,14 @@ class Discovery:
             now = time.time()
 
             if msg_type == "GM":
-                self.peers[peer_id] = (ip, now)
+                self.peers[peer_id] = (ip, now, pub_key)
 
                 # Reply directly
-                ack = f"GM_ACK {self.identity.anon_id}"
+                ack = f"GM_ACK {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
                 self.transport.send(ack, ip, self.port)
 
             elif msg_type == "GM_ACK":
-                self.peers[peer_id] = (ip, now)
+                self.peers[peer_id] = (ip, now, pub_key)
 
             self._cleanup()
 
@@ -80,7 +82,7 @@ class Discovery:
         now = time.time()
         expired = [
             peer_id
-            for peer_id, (_, last_seen) in self.peers.items()
+            for peer_id, (_, last_seen, _) in self.peers.items()
             if now - last_seen > self.PEER_TIMEOUT
         ]
         for peer_id in expired:
