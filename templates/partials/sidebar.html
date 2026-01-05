@@ -9,29 +9,10 @@
         </div>
     </div>
 
-    <div class="sidebar-section sidebar-tools">
-        <label class="field">
-            <span class="field-icon">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            </span>
-            <input id="nav-filter" class="field-input" type="text" placeholder="Filter rooms or peers">
-        </label>
-        <div class="mini-cards">
-            <div class="mini-card">
-                <div class="mini-label">You</div>
-                <div class="mini-value mono">{{ my_id[:8] }}...</div>
-            </div>
-            <div class="mini-card">
-                <div class="mini-label">Interface</div>
-                <div class="mini-value" id="current-interface">Loading...</div>
-            </div>
-        </div>
-    </div>
-
     <nav class="nav-scroller">
         <div class="nav-section">
             <div class="nav-section-head">
-                <div class="nav-section-title">Rooms</div>
+                <div class="nav-section-title">Home</div>
                 <button id="create-room" class="nav-add-btn" type="button">New</button>
             </div>
             <div id="rooms-list"></div>
@@ -46,35 +27,6 @@
         <div class="user-info">
             <div id="user-name" class="user-name">{{ display_name }}</div>
             <div class="user-status" id="connection-status">Online</div>
-        </div>
-        <button id="settings-button" class="settings-btn" type="button" aria-label="Settings">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.8 1.8 0 00.36 2l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.8 1.8 0 00-2-.36 1.8 1.8 0 00-1 1.64V22a2 2 0 01-4 0v-.09a1.8 1.8 0 00-1-1.64 1.8 1.8 0 00-2 .36l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.8 1.8 0 00.36-2 1.8 1.8 0 00-1.64-1H2a2 2 0 010-4h.09a1.8 1.8 0 001.64-1 1.8 1.8 0 00-.36-2l-.06-.06a2 2 0 012.83-2.83l.06.06a1.8 1.8 0 002 .36h.01A1.8 1.8 0 009 4.6V4a2 2 0 014 0v.09a1.8 1.8 0 001 1.64 1.8 1.8 0 002-.36l.06-.06a2 2 0 012.83 2.83l-.06.06a1.8 1.8 0 00-.36 2v.01a1.8 1.8 0 001.64 1H22a2 2 0 010 4h-.09a1.8 1.8 0 00-1.64 1z"/></svg>
-        </button>
-    </div>
-    <div id="settings-panel" class="settings-panel hidden" role="dialog" aria-label="Settings">
-        <div class="settings-header">
-            <div class="settings-title">Settings</div>
-            <button id="settings-close" class="ghost-btn small-btn" type="button">Close</button>
-        </div>
-        <div class="settings-section">
-            <div class="settings-label">Nickname</div>
-            <div class="settings-row">
-                <label class="field nickname-field">
-                    <span class="field-icon">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </span>
-                    <input id="nickname-input" class="field-input" type="text" placeholder="Set nickname">
-                </label>
-                <button id="nickname-save" class="ghost-btn small-btn" type="button">Update</button>
-            </div>
-        </div>
-        <div class="settings-section">
-            <div class="settings-label">Encryption</div>
-            <div class="settings-pill">Enabled</div>
-        </div>
-        <div class="settings-section">
-            <div class="settings-label">Interface</div>
-            <div id="interface-menu" class="interface-menu" role="menu" aria-label="Network interfaces"></div>
         </div>
     </div>
 </aside>

@@ -37,9 +37,6 @@ const els = {
     userName: document.getElementById('user-name'),
     nicknameInput: document.getElementById('nickname-input'),
     nicknameSave: document.getElementById('nickname-save'),
-    settingsButton: document.getElementById('settings-button'),
-    settingsPanel: document.getElementById('settings-panel'),
-    settingsClose: document.getElementById('settings-close'),
     form: document.getElementById('send-form'),
     msg: document.getElementById('message'),
     ifaceMenu: document.getElementById('interface-menu'),
@@ -58,7 +55,14 @@ const els = {
     fileInput: document.getElementById('file-input'),
     attachButton: document.getElementById('attach-button'),
     emojiToggle: document.getElementById('emoji-toggle'),
-    emojiPicker: document.getElementById('emoji-picker')
+    emojiPicker: document.getElementById('emoji-picker'),
+    homeSummary: document.getElementById('home-summary'),
+    homePeers: document.getElementById('home-peers'),
+    homePeerCount: document.getElementById('home-peer-count'),
+    homeNearby: document.getElementById('home-nearby'),
+    homeInterface: document.getElementById('home-interface'),
+    toolbar: document.querySelector('.toolbar'),
+    composer: document.querySelector('.composer')
 };
 
 function relativeTime(ts) {
@@ -123,9 +127,9 @@ function showToast(text) {
 
 function updateHeader(peers) {
     if (state.room === 'all') {
-        els.title.textContent = 'Global Lobby';
-        els.roomChip.textContent = 'Global';
-        els.count.textContent = `${peers.length} active peer(s)`;
+        els.title.textContent = 'Home';
+        els.roomChip.textContent = 'Home';
+        els.count.textContent = `${peers.length} nearby device(s)`;
     } else {
         const peer = peers.find(p => p.id === state.room);
         const label = peer ? peerLabel(peer.id) : `${state.room.substring(0, 8)}...`;
@@ -136,6 +140,47 @@ function updateHeader(peers) {
         } else {
             els.count.textContent = 'Direct channel';
         }
+    }
+}
+
+function updateHomeSummary(peers) {
+    if (!els.homeSummary || !els.feed) return;
+    const isHome = state.room === 'all';
+    els.homeSummary.classList.toggle('hidden', !isHome);
+    els.feed.classList.toggle('hidden', isHome);
+    if (els.toolbar) {
+        els.toolbar.classList.toggle('hidden', isHome);
+    }
+    if (els.composer) {
+        els.composer.classList.toggle('hidden', isHome);
+    }
+    if (els.scrollBtn) {
+        els.scrollBtn.classList.toggle('hidden', isHome);
+    }
+    if (!isHome) return;
+
+    const count = peers.length;
+    if (els.homePeerCount) {
+        els.homePeerCount.textContent = `${count} nearby`;
+    }
+    if (els.homeNearby) {
+        els.homeNearby.textContent = `${count}`;
+    }
+    if (els.homeInterface) {
+        els.homeInterface.textContent = state.currentInterface || '-';
+    }
+    if (els.homePeers) {
+        if (!count) {
+            els.homePeers.innerHTML = '<div class="nav-empty">No nearby devices yet</div>';
+            return;
+        }
+        els.homePeers.innerHTML = peers
+            .map(peer => {
+                const label = peerLabel(peer.id);
+                const lastSeen = peer.last_seen ? relativeTime(peer.last_seen) : 'just now';
+                return `<div class="summary-peer">${label}<span>${lastSeen}</span></div>`;
+            })
+            .join('');
     }
 }
 
@@ -155,7 +200,7 @@ function renderNav(rooms, peers) {
     els.rooms.innerHTML = '';
     const allItem = document.createElement('div');
     allItem.className = `nav-item ${state.room === 'all' ? 'active' : ''}`;
-    allItem.innerHTML = `${ICONS.HASH} <span>Global Lobby</span>`;
+    allItem.innerHTML = `${ICONS.HASH} <span>Home</span>`;
     const allUnread = state.unreadByRoom.all || 0;
     if (allUnread > 0) {
         const badge = document.createElement('span');
@@ -164,7 +209,7 @@ function renderNav(rooms, peers) {
         allItem.appendChild(badge);
     }
     allItem.onclick = () => switchRoom('all');
-    if (!query || 'global lobby'.includes(query)) {
+    if (!query || 'home'.includes(query)) {
         els.rooms.appendChild(allItem);
     }
 
@@ -215,6 +260,7 @@ function renderNav(rooms, peers) {
     els.statusLabel.textContent = safePeers.length > 0 ? 'Live' : 'Syncing';
 
     updateHeader(safePeers);
+    updateHomeSummary(safePeers);
 }
 
 function renderInterfaceMenu(list) {
@@ -455,6 +501,7 @@ async function fetchState(force = false) {
             if (state.interfaces.length) {
                 renderInterfaceMenu(state.interfaces);
             }
+            updateHomeSummary(state.peers);
         }
 
         if (data.messages && data.messages.length) {
@@ -578,12 +625,6 @@ function toggleEmojiPicker(force) {
     els.emojiPicker.classList.toggle('hidden', !shouldShow);
 }
 
-function toggleSettingsPanel(force) {
-    if (!els.settingsPanel) return;
-    const isHidden = els.settingsPanel.classList.contains('hidden');
-    const shouldShow = force !== undefined ? force : isHidden;
-    els.settingsPanel.classList.toggle('hidden', !shouldShow);
-}
 
 function handleFeedScroll() {
     if (isNearBottom()) {
@@ -607,10 +648,12 @@ async function loadInterfaces() {
     renderInterfaceMenu(list);
 }
 
-els.navFilter.addEventListener('input', () => {
-    state.navQuery = els.navFilter.value;
-    renderNav(state.rooms, state.peers);
-});
+if (els.navFilter) {
+    els.navFilter.addEventListener('input', () => {
+        state.navQuery = els.navFilter.value;
+        renderNav(state.rooms, state.peers);
+    });
+}
 
 els.messageFilter.addEventListener('input', () => {
     state.filterQuery = els.messageFilter.value;
@@ -682,18 +725,6 @@ if (els.emojiPicker) {
     });
 }
 
-if (els.settingsButton) {
-    els.settingsButton.addEventListener('click', () => {
-        toggleSettingsPanel();
-    });
-}
-
-if (els.settingsClose) {
-    els.settingsClose.addEventListener('click', () => {
-        toggleSettingsPanel(false);
-    });
-}
-
 if (els.ifaceMenu) {
     els.ifaceMenu.addEventListener('click', async e => {
         const button = e.target.closest('.interface-option');
@@ -754,10 +785,6 @@ document.addEventListener('click', e => {
     const emojiToggleHit = els.emojiToggle && els.emojiToggle.contains(e.target);
     if (els.emojiPicker && !els.emojiPicker.contains(e.target) && !emojiToggleHit) {
         toggleEmojiPicker(false);
-    }
-    const settingsToggleHit = els.settingsButton && els.settingsButton.contains(e.target);
-    if (els.settingsPanel && !els.settingsPanel.contains(e.target) && !settingsToggleHit) {
-        toggleSettingsPanel(false);
     }
 });
 

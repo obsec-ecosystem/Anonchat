@@ -163,11 +163,6 @@ body::after {
     flex-shrink: 0;
 }
 
-.sidebar-tools {
-    display: grid;
-    gap: 12px;
-}
-
 .nickname-field {
     flex: 1;
 }
@@ -353,80 +348,14 @@ body::after {
     transition: border 0.2s, color 0.2s;
 }
 
-.settings-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--text);
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-}
-
-.settings-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent-strong);
-}
-
-.settings-panel {
-    position: absolute;
-    right: 14px;
-    bottom: 80px;
-    width: 260px;
-    max-width: calc(100% - 28px);
-    background: rgba(16, 18, 22, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 12px;
-    box-shadow: var(--shadow-md);
-    z-index: 30;
-    display: grid;
-    gap: 12px;
-    max-height: calc(100% - 120px);
-    overflow-y: auto;
-}
-
-.settings-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.settings-title {
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.settings-section {
-    display: grid;
-    gap: 8px;
-}
-
-.settings-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-}
-
-.settings-row {
+.summary-inline {
     display: flex;
     gap: 8px;
     align-items: center;
 }
 
-.settings-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(0, 210, 106, 0.35);
-    color: #00d26a;
-    font-size: 12px;
-    background: rgba(0, 210, 106, 0.08);
+.summary-inline .field {
+    flex: 1;
 }
 
 .interface-btn:hover { border-color: var(--accent); color: var(--accent-strong); }
@@ -563,6 +492,117 @@ body::after {
     padding: 6px 10px;
     border-radius: 999px;
     white-space: nowrap;
+}
+
+.home-summary {
+    padding: 18px 24px 6px;
+    display: grid;
+    gap: 16px;
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.summary-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.summary-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.summary-badge {
+    background: rgba(47, 155, 255, 0.16);
+    border: 1px solid rgba(47, 155, 255, 0.35);
+    color: var(--accent-strong);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.summary-card {
+    background: rgba(22, 25, 30, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    display: grid;
+    gap: 6px;
+}
+
+.summary-card .interface-menu {
+    background: rgba(12, 14, 18, 0.8);
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.08);
+    max-height: 160px;
+}
+
+.summary-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.summary-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.status-ok {
+    color: #00d26a;
+}
+
+.summary-list {
+    background: rgba(16, 18, 22, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.summary-card .interface-menu {
+    background: rgba(12, 14, 18, 0.8);
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.08);
+    max-height: 160px;
+}
+
+.summary-list-title {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.summary-list-items {
+    display: grid;
+    gap: 8px;
+}
+
+.summary-peer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.summary-peer span {
+    color: var(--text-muted);
+    font-size: 11px;
 }
 
 /* Messages */

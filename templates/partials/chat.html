@@ -21,8 +21,58 @@
             </span>
             <input id="message-filter" class="field-input" type="text" placeholder="Search messages">
         </label>
-        <div class="room-chip" id="room-chip">Global</div>
+        <div class="room-chip" id="room-chip">Home</div>
     </div>
+
+    <section id="home-summary" class="home-summary hidden">
+        <div class="summary-header">
+            <div>
+                <div class="summary-title">Home Overview</div>
+                <div class="summary-subtitle">Nearby devices and network status</div>
+            </div>
+            <div class="summary-badge" id="home-peer-count">0 nearby</div>
+        </div>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-label">Nearby Devices</div>
+                <div id="home-nearby" class="summary-value">0</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Active Rooms</div>
+                <div class="summary-value">1</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Interface</div>
+                <div id="home-interface" class="summary-value mono">-</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Encryption</div>
+                <div class="summary-value status-ok">Enabled</div>
+            </div>
+        </div>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-label">Nickname</div>
+                <div class="summary-inline">
+                    <label class="field nickname-field">
+                        <span class="field-icon">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </span>
+                        <input id="nickname-input" class="field-input" type="text" placeholder="Set nickname">
+                    </label>
+                    <button id="nickname-save" class="ghost-btn small-btn" type="button">Update</button>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Interface</div>
+                <div id="interface-menu" class="interface-menu" role="menu" aria-label="Network interfaces"></div>
+            </div>
+        </div>
+        <div class="summary-list">
+            <div class="summary-list-title">Nearby Devices</div>
+            <div id="home-peers" class="summary-list-items"></div>
+        </div>
+    </section>
 
     <div id="feed" class="feed">
         <div id="empty-state" class="empty-state">
