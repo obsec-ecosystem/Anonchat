@@ -129,6 +129,8 @@ function updateHeader(peers) {
 }
 
 function renderNav(rooms, peers) {
+    const safeRooms = Array.isArray(rooms) ? rooms : [];
+    const safePeers = Array.isArray(peers) ? peers : [];
     const query = state.navQuery.trim().toLowerCase();
 
     els.rooms.innerHTML = '';
@@ -140,9 +142,9 @@ function renderNav(rooms, peers) {
         els.rooms.appendChild(allItem);
     }
 
-    rooms.forEach(r => {
+    safeRooms.forEach(r => {
         if (r === 'all') return;
-        if (query && !r.toLowerCase().includes(query)) return;
+        if (query && !String(r).toLowerCase().includes(query)) return;
         const item = document.createElement('div');
         item.className = `nav-item ${state.room === r ? 'active' : ''}`;
         item.innerHTML = `${ICONS.HASH} <span>${r}</span>`;
@@ -151,7 +153,7 @@ function renderNav(rooms, peers) {
     });
 
     els.peers.innerHTML = '';
-    const filteredPeers = peers.filter(p => !query || p.id.toLowerCase().includes(query));
+    const filteredPeers = safePeers.filter(p => !query || (p.id && p.id.toLowerCase().includes(query)));
 
     if (filteredPeers.length === 0) {
         const empty = document.createElement('div');
@@ -168,11 +170,11 @@ function renderNav(rooms, peers) {
         els.peers.appendChild(item);
     });
 
-    els.statusDot.className = peers.length > 0 ? 'status-dot active' : 'status-dot';
-    els.statusText.textContent = peers.length > 0 ? 'Connected' : 'Searching...';
-    els.statusLabel.textContent = peers.length > 0 ? 'Live' : 'Syncing';
+    els.statusDot.className = safePeers.length > 0 ? 'status-dot active' : 'status-dot';
+    els.statusText.textContent = safePeers.length > 0 ? 'Connected' : 'Searching...';
+    els.statusLabel.textContent = safePeers.length > 0 ? 'Live' : 'Syncing';
 
-    updateHeader(peers);
+    updateHeader(safePeers);
 }
 
 function renderInterfaceMenu(list) {
