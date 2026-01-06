@@ -450,7 +450,7 @@ function addMessage(msg) {
 
     applyMessageFilter();
 
-    if (msg.direction === 'in' && msgRoom !== state.room && state.room !== 'all') {
+    if (msg.direction === 'in' && msgRoom !== state.room) {
         state.unreadByRoom[msgRoom] = (state.unreadByRoom[msgRoom] || 0) + 1;
         renderNav(state.rooms, state.peers);
         updateUnreadTotals();
