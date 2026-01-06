@@ -23,7 +23,8 @@ const state = {
     pendingOut: [],
     unreadByRoom: {},
     sidebarLastId: 0,
-    notifications: []
+    notifications: [],
+    blockedPeers: new Set()
 };
 
 const els = {
@@ -93,7 +94,10 @@ function updateScrollButton() {
 }
 
 function updateUnreadTotals() {
-    const total = Object.values(state.unreadByRoom).reduce((sum, value) => sum + value, 0);
+    const total = Object.entries(state.unreadByRoom)
+        .filter(([key]) => key !== 'all')
+        .reduce((sum, [, value]) => sum + value, 0);
+    state.unreadByRoom.all = total;
     if (total > 0) {
         document.title = `(${total}) AnonChat // Secure`;
     } else {
@@ -197,7 +201,8 @@ function addNotification(msg) {
         room: msg.room,
         label: roomName,
         text: msg.text,
-        ts: msg.ts
+        ts: msg.ts,
+        ip: peerIp(msg.peer_id)
     });
     if (state.notifications.length > 6) {
         state.notifications.pop();
@@ -207,15 +212,29 @@ function addNotification(msg) {
 
 function renderHomeNotifications() {
     if (!els.homeNotifications) return;
-    const items = state.notifications;
+    const items = state.notifications.filter(note => !state.blockedPeers.has(note.room));
     if (!items.length) {
         els.homeNotifications.innerHTML = '<div class="nav-empty">No new notifications</div>';
         return;
     }
-    els.homeNotifications.innerHTML = items
+    const grouped = new Map();
+    items.forEach(note => {
+        const key = note.ip || note.room || 'unknown';
+        const existing = grouped.get(key);
+        if (!existing) {
+            grouped.set(key, { ...note, count: 1 });
+        } else {
+            existing.count += 1;
+            existing.text = note.text;
+            existing.ts = note.ts;
+            grouped.set(key, existing);
+        }
+    });
+    els.homeNotifications.innerHTML = Array.from(grouped.values())
         .map(note => {
             const preview = String(note.text || '').slice(0, 48);
-            return `<div class="summary-note"><strong>${note.label}</strong><span>${preview}</span></div>`;
+            const count = note.count > 1 ? ` (${note.count})` : '';
+            return `<div class="summary-note"><strong>${note.label}${count}</strong><span>${preview}</span></div>`;
         })
         .join('');
 }
@@ -226,6 +245,25 @@ function peerLabel(peerId) {
         return `${peer.nickname} (${peerId.substring(0, 8)})`;
     }
     return `${peerId.substring(0, 8)}...`;
+}
+
+function peerIp(peerId) {
+    const peer = state.peers.find(item => item.id === peerId);
+    return peer ? peer.ip : '';
+}
+
+function loadBlockedPeers() {
+    try {
+        const raw = localStorage.getItem('anonchat.blocked');
+        const list = raw ? JSON.parse(raw) : [];
+        state.blockedPeers = new Set(Array.isArray(list) ? list : []);
+    } catch (err) {
+        state.blockedPeers = new Set();
+    }
+}
+
+function saveBlockedPeers() {
+    localStorage.setItem('anonchat.blocked', JSON.stringify(Array.from(state.blockedPeers)));
 }
 
 function renderNav(rooms, peers) {
@@ -266,13 +304,27 @@ function renderNav(rooms, peers) {
         els.rooms.appendChild(item);
     });
 
+    if (safeRooms.length <= 1) {
+        const empty = document.createElement('div');
+        empty.className = 'nav-empty';
+        empty.textContent = 'No rooms found';
+        els.rooms.appendChild(empty);
+    }
+
     els.peers.innerHTML = '';
-    const filteredPeers = safePeers.filter(p => !query || (p.id && p.id.toLowerCase().includes(query)));
+    const filteredPeers = safePeers.filter(p => !state.blockedPeers.has(p.id))
+        .filter(p => !query || (p.id && p.id.toLowerCase().includes(query)));
 
     if (filteredPeers.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'nav-empty';
-        empty.textContent = query ? 'No matches' : 'No active peers';
+        if (query) {
+            empty.textContent = 'No matches';
+        } else if (safePeers.length && state.blockedPeers.size) {
+            empty.textContent = `All peers blocked (${state.blockedPeers.size})`;
+        } else {
+            empty.textContent = 'No active peers';
+        }
         els.peers.appendChild(empty);
     }
 
@@ -287,6 +339,17 @@ function renderNav(rooms, peers) {
             badge.textContent = unread;
             item.appendChild(badge);
         }
+        const blockBtn = document.createElement('button');
+        blockBtn.className = 'nav-action';
+        blockBtn.textContent = 'Block';
+        blockBtn.onclick = e => {
+            e.stopPropagation();
+            if (!confirm(`Block ${peerLabel(p.id)}?`)) return;
+            state.blockedPeers.add(p.id);
+            saveBlockedPeers();
+            renderNav(state.rooms, state.peers);
+        };
+        item.appendChild(blockBtn);
         item.onclick = () => switchRoom(p.id);
         els.peers.appendChild(item);
     });
@@ -297,6 +360,7 @@ function renderNav(rooms, peers) {
 
     updateHeader(safePeers);
     updateHomeSummary(safePeers);
+    updateUnreadTotals();
 }
 
 function renderInterfaceMenu(list) {
@@ -875,6 +939,8 @@ updateScrollButton();
 updateEmptyState();
 updateUnreadTotals();
 renderEmojiPicker();
+loadBlockedPeers();
+renderNav(state.rooms, state.peers);
 loadInterfaces();
 setInterval(fetchSidebarState, 2000);
 setInterval(fetchState, 1000);
