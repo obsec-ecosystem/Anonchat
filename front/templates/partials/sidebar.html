@@ -1,0 +1,62 @@
+<aside class="sidebar">
+    <div class="brand-header">
+        <div class="logo-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="brand-stack">
+            <div class="brand-text">AnonChat</div>
+            <div class="brand-subtext">Secure Mesh Relay</div>
+        </div>
+    </div>
+
+    <nav class="nav-scroller">
+        <div class="sidebar-search">
+            <label class="field">
+                <span class="field-icon">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                </span>
+                <input id="nav-filter" class="field-input" type="text" placeholder="Search rooms or peers">
+            </label>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-head">
+                <div class="nav-section-title">Rooms</div>
+                <div class="nav-section-actions">
+                    <button id="sidebar-settings" class="nav-icon-btn" type="button" aria-label="Open settings">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.82-.33 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.33-1.82 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.09a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.82.33H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.5 1.7 1.7 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.33 1.82V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.5 1z"/></svg>
+                    </button>
+                    <button id="create-room" class="nav-add-btn" type="button">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                        <span>New</span>
+                    </button>
+                </div>
+            </div>
+            <div id="rooms-list"></div>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-head">
+                <div class="nav-section-title">Direct Messages</div>
+            </div>
+            <div id="peers-list"></div>
+        </div>
+        <div id="members-section" class="nav-section hidden">
+            <div class="nav-section-head">
+                <div class="nav-section-title">Room Members</div>
+                <span id="members-count" class="nav-count">0</span>
+            </div>
+            <div id="members-list" class="members-list"></div>
+        </div>
+    </nav>
+
+    <div class="user-bar">
+        <div class="user-identity">
+            <div class="user-avatar" aria-hidden="true">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="user-info">
+                <div id="user-name" class="user-name">{{ display_name }}</div>
+                <div class="user-status" id="connection-status">Online</div>
+            </div>
+        </div>
+    </div>
+</aside>

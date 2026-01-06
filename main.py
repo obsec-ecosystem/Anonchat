@@ -10,8 +10,8 @@ from app.cli import (
     print_banner,
     handle_command,
 )
-from settings import Settings
-from ui.server import run_ui_server
+from setup.settings import Settings
+from front.server import run_ui_server
 
 
 def main():

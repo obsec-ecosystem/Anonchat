@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnonChat // Secure</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-grid">
+    {% block body %}{% endblock %}
+</div>
+<script src="{{ url_for('static', filename='js/core.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/utils.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/home.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/rooms.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/members.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/interfaces.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/messages.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/api.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/events.js') }}" defer></script>
+</body>
+</html>
