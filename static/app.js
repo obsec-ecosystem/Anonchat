@@ -41,7 +41,6 @@ const els = {
     form: document.getElementById('send-form'),
     msg: document.getElementById('message'),
     ifaceMenu: document.getElementById('interface-menu'),
-    ifaceLabel: document.getElementById('current-interface'),
     navFilter: document.getElementById('nav-filter'),
     createRoom: document.getElementById('create-room'),
     messageFilter: document.getElementById('message-filter'),
@@ -536,7 +535,6 @@ async function fetchState(force = false) {
 
         if (data.interface && data.interface.current) {
             state.currentInterface = data.interface.current;
-            els.ifaceLabel.textContent = data.interface.current;
             if (state.interfaces.length) {
                 renderInterfaceMenu(state.interfaces);
             }
