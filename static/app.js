@@ -363,6 +363,18 @@ function formatBytes(bytes) {
     return `${value.toFixed(value >= 10 || idx === 0 ? 0 : 1)}${units[idx]}`;
 }
 
+function isImagePayload(payload) {
+    if (!payload) return false;
+    if (payload.mime && payload.mime.startsWith('image/')) return true;
+    const name = (payload.name || '').toLowerCase();
+    const url = (payload.url || '').toLowerCase();
+    const data = (payload.data || '').toLowerCase();
+    const imageExt = /\.(png|jpe?g|gif|webp|bmp)$/;
+    if (imageExt.test(name) || imageExt.test(url)) return true;
+    if (data.startsWith('data:image/')) return true;
+    return false;
+}
+
 function buildBubbleContent(bubble, payload) {
     if (payload.type === 'text') {
         bubble.textContent = payload.text;
@@ -374,11 +386,12 @@ function buildBubbleContent(bubble, payload) {
         wrapper.className = 'file-card';
 
         const previewUrl = payload.data || payload.url;
-        if (payload.mime && payload.mime.startsWith('image/') && previewUrl) {
+        if (previewUrl && isImagePayload(payload)) {
             const img = document.createElement('img');
             img.src = previewUrl;
             img.alt = payload.name;
             img.className = 'file-thumb';
+            img.loading = 'lazy';
             wrapper.appendChild(img);
         }
 
@@ -395,11 +408,16 @@ function buildBubbleContent(bubble, payload) {
 
         const link = document.createElement('a');
         link.className = 'file-download';
-        link.href = payload.data || payload.url || '#';
-        link.download = payload.name || 'download';
-        link.textContent = payload.url ? 'Open' : 'Download';
-        link.target = payload.url ? '_blank' : '';
-        link.rel = payload.url ? 'noopener' : '';
+        const href = payload.data || payload.url || '#';
+        link.href = href;
+        if (payload.url) {
+            link.textContent = 'Open';
+            link.target = '_blank';
+            link.rel = 'noopener';
+        } else {
+            link.textContent = 'Download';
+            link.download = payload.name || 'download';
+        }
         info.appendChild(link);
 
         wrapper.appendChild(info);

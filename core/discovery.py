@@ -104,7 +104,11 @@ class Discovery:
 
             if msg_type in ("GM", "GM_ACK"):
                 pub_key, nick = self._parse_payload(payload)
-                self.peers[peer_id] = (ip, now, pub_key, nick)
+                if peer_id in self.peers:
+                    _, _, _, existing_nick = self.peers[peer_id]
+                else:
+                    existing_nick = None
+                self.peers[peer_id] = (ip, now, pub_key, nick or existing_nick)
 
                 if msg_type == "GM":
                     ack = f"GM_ACK {self.identity.anon_id} {self.identity.crypto.public_key_b64}"
