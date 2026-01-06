@@ -112,7 +112,10 @@ def main():
 
     # --- CLI ---
     print_banner(identity)
-    print(f"UI running at http://{settings.ui_host}:{settings.ui_port}\n")
+    ui_host_label = settings.ui_host
+    if ui_host_label == "0.0.0.0":
+        ui_host_label = bind_ip
+    print(f"UI running at http://{ui_host_label}:{settings.ui_port}\n")
 
     try:
         while True:

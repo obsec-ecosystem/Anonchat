@@ -2,10 +2,13 @@
 
 const ICONS = {
     HASH: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/></svg>`,
-    USER: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
+    USER: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    LOCK: `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>`
 };
 
 const EMOJI_PICKER = ['😀', '😄', '😂', '😊', '😍', '😎', '👍', '🔥', '✨', '🎉'];
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_LABEL = '10 MB';
 
 const state = {
     room: 'all',
@@ -64,8 +67,21 @@ const els = {
     homeInterface: document.getElementById('home-interface'),
     homeUnread: document.getElementById('home-unread'),
     homeNotifications: document.getElementById('home-notifications'),
+    homeRoomCount: document.getElementById('home-room-count'),
     toolbar: document.querySelector('.toolbar'),
-    composer: document.querySelector('.composer')
+    composer: document.querySelector('.composer'),
+    roomModal: document.getElementById('room-modal'),
+    roomModalTitle: document.getElementById('room-modal-title'),
+    roomModalClose: document.getElementById('room-modal-close'),
+    roomModalCancel: document.getElementById('room-modal-cancel'),
+    roomModalSubmit: document.getElementById('room-modal-submit'),
+    roomCreateName: document.getElementById('room-create-name'),
+    roomCreatePassword: document.getElementById('room-create-password'),
+    roomCreateLimit: document.getElementById('room-create-limit'),
+    roomCreateDiscoverable: document.getElementById('room-create-discoverable'),
+    roomJoinName: document.getElementById('room-join-name'),
+    roomJoinPassword: document.getElementById('room-join-password'),
+    roomJoinMeta: document.getElementById('room-join-meta')
 };
 
 function relativeTime(ts) {
@@ -139,16 +155,27 @@ function updateHeader(peers) {
         els.title.textContent = 'Home';
         els.roomChip.textContent = 'Home';
         els.count.textContent = `${peers.length} nearby device(s)`;
+        return;
+    }
+
+    const room = roomById(state.room);
+    if (room) {
+        const count = room.member_count || 0;
+        const limit = room.max_members ? ` / ${room.max_members}` : '';
+        els.title.textContent = `Room: ${room.name || state.room.substring(0, 8)}`;
+        els.roomChip.textContent = room.locked ? 'Locked' : 'Room';
+        els.count.textContent = room.pending ? 'Join request pending' : `${count}${limit} member(s)`;
+        return;
+    }
+
+    const peer = peers.find(p => p.id === state.room);
+    const label = peer ? peerLabel(peer.id) : `${state.room.substring(0, 8)}...`;
+    els.title.textContent = `Priv: ${label}`;
+    els.roomChip.textContent = 'Direct';
+    if (peer && peer.last_seen) {
+        els.count.textContent = `Last seen ${relativeTime(peer.last_seen)}`;
     } else {
-        const peer = peers.find(p => p.id === state.room);
-        const label = peer ? peerLabel(peer.id) : `${state.room.substring(0, 8)}...`;
-        els.title.textContent = `Priv: ${label}`;
-        els.roomChip.textContent = 'Direct';
-        if (peer && peer.last_seen) {
-            els.count.textContent = `Last seen ${relativeTime(peer.last_seen)}`;
-        } else {
-            els.count.textContent = 'Direct channel';
-        }
+        els.count.textContent = 'Direct channel';
     }
 }
 
@@ -171,6 +198,10 @@ function updateHomeSummary(peers) {
     const count = peers.length;
     if (els.homePeerCount) {
         els.homePeerCount.textContent = `${count} nearby`;
+    }
+    if (els.homeRoomCount) {
+        const roomCount = state.rooms.filter(room => room.joined).length + 1;
+        els.homeRoomCount.textContent = `${roomCount}`;
     }
     if (els.homeNearby) {
         els.homeNearby.textContent = `${count}`;
@@ -195,14 +226,14 @@ function updateHomeSummary(peers) {
 }
 
 function addNotification(msg) {
-    const label = peerLabel(msg.peer_id);
-    const roomName = msg.room === 'all' ? 'Home' : label;
+    const roomName = roomLabel(msg.room);
+    const isGroup = Boolean(roomById(msg.room));
     state.notifications.unshift({
         room: msg.room,
         label: roomName,
         text: msg.text,
         ts: msg.ts,
-        ip: peerIp(msg.peer_id)
+        ip: isGroup ? '' : peerIp(msg.peer_id)
     });
     if (state.notifications.length > 6) {
         state.notifications.pop();
@@ -225,18 +256,34 @@ function renderHomeNotifications() {
             grouped.set(key, { ...note, count: 1 });
         } else {
             existing.count += 1;
-            existing.text = note.text;
-            existing.ts = note.ts;
+            if (typeof note.ts === 'number' && note.ts > (existing.ts || 0)) {
+                existing.text = note.text;
+                existing.ts = note.ts;
+            }
             grouped.set(key, existing);
         }
     });
     els.homeNotifications.innerHTML = Array.from(grouped.values())
+        .sort((a, b) => (b.ts || 0) - (a.ts || 0))
         .map(note => {
             const preview = String(note.text || '').slice(0, 48);
             const count = note.count > 1 ? ` (${note.count})` : '';
             return `<div class="summary-note"><strong>${note.label}${count}</strong><span>${preview}</span></div>`;
         })
         .join('');
+}
+
+function roomById(roomId) {
+    return state.rooms.find(room => room.id === roomId);
+}
+
+function roomLabel(roomId) {
+    if (roomId === 'all') return 'Home';
+    const room = roomById(roomId);
+    if (room && room.name) {
+        return room.name;
+    }
+    return peerLabel(roomId);
 }
 
 function peerLabel(peerId) {
@@ -274,7 +321,7 @@ function renderNav(rooms, peers) {
     els.rooms.innerHTML = '';
     const allItem = document.createElement('div');
     allItem.className = `nav-item ${state.room === 'all' ? 'active' : ''}`;
-    allItem.innerHTML = `${ICONS.HASH} <span>Home</span>`;
+    allItem.innerHTML = `${ICONS.HASH} <span class="nav-text">Home</span>`;
     const allUnread = state.unreadByRoom.all || 0;
     if (allUnread > 0) {
         const badge = document.createElement('span');
@@ -287,27 +334,98 @@ function renderNav(rooms, peers) {
         els.rooms.appendChild(allItem);
     }
 
-    safeRooms.forEach(r => {
-        if (r === 'all') return;
-        if (query && !String(r).toLowerCase().includes(query)) return;
+    let shownRooms = 0;
+    safeRooms.forEach(room => {
+        if (!room || !room.id) return;
+        const roomName = room.name || `Room ${room.id.substring(0, 6)}`;
+        const haystack = `${roomName} ${room.id}`.toLowerCase();
+        if (query && !haystack.includes(query)) return;
+
         const item = document.createElement('div');
-        item.className = `nav-item ${state.room === r ? 'active' : ''}`;
-        item.innerHTML = `${ICONS.HASH} <span>${peerLabel(r)}</span>`;
-        const unread = state.unreadByRoom[r] || 0;
+        item.className = `nav-item ${state.room === room.id ? 'active' : ''} ${room.joined ? '' : 'inactive'}`;
+        const icon = document.createElement('span');
+        icon.innerHTML = ICONS.HASH;
+        item.appendChild(icon);
+
+        const label = document.createElement('div');
+        label.className = 'nav-label';
+        const name = document.createElement('div');
+        name.className = 'nav-name';
+        name.textContent = roomName;
+        label.appendChild(name);
+
+        const meta = document.createElement('div');
+        meta.className = 'nav-meta';
+        const count = room.member_count || 0;
+        const limit = room.max_members ? ` / ${room.max_members}` : '';
+        const metaText = document.createElement('span');
+        metaText.textContent = `${count}${limit} member(s)`;
+        meta.appendChild(metaText);
+        if (room.locked) {
+            const lock = document.createElement('span');
+            lock.className = 'nav-tag lock';
+            lock.innerHTML = `${ICONS.LOCK} Locked`;
+            meta.appendChild(lock);
+        }
+        if (room.is_owner) {
+            const owner = document.createElement('span');
+            owner.className = 'nav-tag owner';
+            owner.textContent = 'Owner';
+            meta.appendChild(owner);
+        } else if (room.pending) {
+            const pending = document.createElement('span');
+            pending.className = 'nav-tag pending';
+            pending.textContent = 'Pending';
+            meta.appendChild(pending);
+        }
+        label.appendChild(meta);
+        item.appendChild(label);
+
+        const unread = state.unreadByRoom[room.id] || 0;
         if (unread > 0) {
             const badge = document.createElement('span');
             badge.className = 'nav-badge';
             badge.textContent = unread;
             item.appendChild(badge);
         }
-        item.onclick = () => switchRoom(r);
+
+        if (!room.is_owner) {
+            const action = document.createElement('button');
+            action.className = 'nav-action';
+            action.textContent = room.joined ? 'Leave' : 'Join';
+            action.classList.add(room.joined ? 'leave' : 'join');
+            if (room.pending) {
+                action.disabled = true;
+                action.textContent = 'Pending';
+            }
+            action.onclick = e => {
+                e.stopPropagation();
+                if (room.pending) return;
+                if (room.joined) {
+                    if (!confirm(`Leave ${roomName}?`)) return;
+                    leaveRoom(room.id);
+                } else {
+                    openRoomModal('join', room);
+                }
+            };
+            item.appendChild(action);
+        }
+
+        item.onclick = () => {
+            if (room.joined) {
+                switchRoom(room.id);
+            } else if (!room.pending) {
+                openRoomModal('join', room);
+            }
+        };
         els.rooms.appendChild(item);
+        shownRooms += 1;
     });
 
-    if (safeRooms.length <= 1) {
+    if (shownRooms === 0) {
         const empty = document.createElement('div');
         empty.className = 'nav-empty';
-        empty.textContent = 'No rooms found';
+        empty.textContent = query ? 'No matches' : 'No rooms found';
         els.rooms.appendChild(empty);
     }
 
@@ -331,7 +449,7 @@ function renderNav(rooms, peers) {
     filteredPeers.forEach(p => {
         const item = document.createElement('div');
         item.className = `nav-item ${state.room === p.id ? 'active' : ''}`;
-        item.innerHTML = `${ICONS.USER} <span>${peerLabel(p.id)}</span>`;
+        item.innerHTML = `${ICONS.USER} <span class="nav-text">${peerLabel(p.id)}</span>`;
         const unread = state.unreadByRoom[p.id] || 0;
         if (unread > 0) {
             const badge = document.createElement('span');
@@ -574,6 +692,11 @@ function applyMessageFilter() {
 
 function switchRoom(room) {
     if (state.room === room) return;
+    const roomObj = roomById(room);
+    if (roomObj && !roomObj.joined) {
+        openRoomModal('join', roomObj);
+        return;
+    }
     state.room = room;
     state.lastId = 0;
     state.lastGroupKey = null;
@@ -599,9 +722,14 @@ async function fetchState(force = false) {
         if (!res.ok) return;
         const data = await res.json();
 
-        state.rooms = data.rooms || [];
+        state.rooms = Array.isArray(data.rooms) ? data.rooms : [];
         state.peers = data.peers || [];
         renderNav(state.rooms, state.peers);
+        const activeRoom = roomById(state.room);
+        if (activeRoom && !activeRoom.joined && !activeRoom.pending) {
+            switchRoom('all');
+            return;
+        }
 
         if (data.me) {
             if (data.me.name && els.userName) {
@@ -628,6 +756,10 @@ async function fetchState(force = false) {
             state.lastId = data.messages[data.messages.length - 1].id;
             state.sidebarLastId = Math.max(state.sidebarLastId, state.lastId);
         }
+
+        if (data.room_events && data.room_events.length) {
+            handleRoomEvents(data.room_events);
+        }
     } finally {
         state.fetching = false;
     }
@@ -640,7 +772,9 @@ async function fetchSidebarState() {
         if (!res.ok) return;
         const data = await res.json();
 
-        state.rooms = data.rooms || state.rooms;
+        if (Array.isArray(data.rooms)) {
+            state.rooms = data.rooms;
+        }
         state.peers = data.peers || state.peers;
         renderNav(state.rooms, state.peers);
 
@@ -654,6 +788,10 @@ async function fetchSidebarState() {
             });
             state.sidebarLastId = data.messages[data.messages.length - 1].id;
             updateUnreadTotals();
+        }
+
+        if (data.room_events && data.room_events.length) {
+            handleRoomEvents(data.room_events);
         }
     } catch (err) {
         return;
@@ -675,6 +813,14 @@ async function sendPayload(text) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room: state.room, text })
+    }).then(async res => {
+        if (res.ok) return;
+        try {
+            const data = await res.json();
+            showToast(data.error || 'Send failed');
+        } catch (err) {
+            showToast('Send failed');
+        }
     });
 }
 
@@ -717,6 +863,10 @@ async function uploadFile(file) {
 }
 
 async function sendFile(file) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+        showToast(`File too large (max ${MAX_UPLOAD_LABEL})`);
+        return;
+    }
     try {
         const uploaded = await uploadFile(file);
         const payload = {
@@ -743,6 +893,134 @@ function toggleEmojiPicker(force) {
     const isHidden = els.emojiPicker.classList.contains('hidden');
     const shouldShow = force !== undefined ? force : isHidden;
     els.emojiPicker.classList.toggle('hidden', !shouldShow);
+}
+
+function handleRoomEvents(events) {
+    events.forEach(event => {
+        if (event.type === 'room_joined') {
+            showToast(`Joined ${event.name || 'room'}`);
+        } else if (event.type === 'room_join_denied') {
+            showToast(event.reason || 'Join denied');
+        } else if (event.type === 'room_discovered') {
+            showToast(`New room: ${event.name || 'room'}`);
+        }
+    });
+}
+
+function openRoomModal(mode, room) {
+    if (!els.roomModal) return;
+    els.roomModal.dataset.mode = mode;
+    els.roomModal.classList.remove('hidden');
+    els.roomModal.setAttribute('aria-hidden', 'false');
+
+    if (mode === 'create') {
+        delete els.roomModal.dataset.roomId;
+        if (els.roomModalTitle) els.roomModalTitle.textContent = 'Create room';
+        if (els.roomModalSubmit) els.roomModalSubmit.textContent = 'Create room';
+        if (els.roomCreateName) els.roomCreateName.value = '';
+        if (els.roomCreatePassword) els.roomCreatePassword.value = '';
+        if (els.roomCreateLimit) els.roomCreateLimit.value = '12';
+        if (els.roomCreateDiscoverable) els.roomCreateDiscoverable.checked = true;
+        if (els.roomCreateName) els.roomCreateName.focus();
+        return;
+    }
+
+    if (mode === 'join' && room) {
+        els.roomModal.dataset.roomId = room.id;
+        if (els.roomModalTitle) els.roomModalTitle.textContent = 'Join room';
+        if (els.roomModalSubmit) els.roomModalSubmit.textContent = 'Join room';
+        if (els.roomJoinName) {
+            els.roomJoinName.textContent = room.name || `Room ${room.id.substring(0, 6)}`;
+        }
+        if (els.roomJoinMeta) {
+            const lockLabel = room.locked ? 'Locked room' : 'Open room';
+            const count = room.member_count || 0;
+            const limit = room.max_members ? ` / ${room.max_members}` : '';
+            els.roomJoinMeta.textContent = `${lockLabel} · ${count}${limit} member(s)`;
+        }
+        if (els.roomJoinPassword) {
+            els.roomJoinPassword.value = '';
+            const field = els.roomJoinPassword.closest('.field');
+            if (field) {
+                field.classList.toggle('hidden', !room.locked);
+            }
+        }
+        if (els.roomJoinPassword && room.locked) {
+            els.roomJoinPassword.focus();
+        }
+    }
+}
+
+function closeRoomModal() {
+    if (!els.roomModal) return;
+    els.roomModal.classList.add('hidden');
+    els.roomModal.setAttribute('aria-hidden', 'true');
+    delete els.roomModal.dataset.mode;
+    delete els.roomModal.dataset.roomId;
+}
+
+async function createRoom(payload) {
+    const res = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        showToast(data.error || 'Room creation failed');
+        return null;
+    }
+    if (data.room) {
+        state.rooms = state.rooms.filter(room => room.id !== data.room.id).concat(data.room);
+        renderNav(state.rooms, state.peers);
+    }
+    showToast('Room created');
+    return data.room || null;
+}
+
+async function joinRoom(roomId, password) {
+    const res = await fetch('/api/rooms/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_id: roomId, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        showToast(data.error || 'Join failed');
+        return;
+    }
+    const room = roomById(roomId);
+    if (room) {
+        room.pending = true;
+        renderNav(state.rooms, state.peers);
+    }
+    showToast('Join request sent');
+}
+
+async function leaveRoom(roomId) {
+    const res = await fetch('/api/rooms/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_id: roomId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        showToast(data.error || 'Leave failed');
+        return;
+    }
+    const room = roomById(roomId);
+    if (room) {
+        room.joined = false;
+        room.pending = false;
+    }
+    state.unreadByRoom[roomId] = 0;
+    updateUnreadTotals();
+    if (state.room === roomId) {
+        switchRoom('all');
+    } else {
+        renderNav(state.rooms, state.peers);
+    }
+    showToast('Left room');
 }
 
 
@@ -897,9 +1175,68 @@ if (els.nicknameSave && els.nicknameInput) {
 
 if (els.createRoom) {
     els.createRoom.addEventListener('click', () => {
-        showToast('Room creation coming soon');
+        openRoomModal('create');
     });
 }
+
+if (els.roomModalClose) {
+    els.roomModalClose.addEventListener('click', closeRoomModal);
+}
+
+if (els.roomModalCancel) {
+    els.roomModalCancel.addEventListener('click', closeRoomModal);
+}
+
+if (els.roomModalSubmit) {
+    els.roomModalSubmit.addEventListener('click', async () => {
+        if (!els.roomModal) return;
+        const mode = els.roomModal.dataset.mode;
+        if (mode === 'create') {
+            const name = (els.roomCreateName && els.roomCreateName.value || '').trim();
+            const password = (els.roomCreatePassword && els.roomCreatePassword.value || '').trim();
+            const limitValue = els.roomCreateLimit ? els.roomCreateLimit.value : '';
+            const maxMembers = parseInt(limitValue, 10);
+            const discoverable = Boolean(els.roomCreateDiscoverable && els.roomCreateDiscoverable.checked);
+            if (!name) {
+                showToast('Room name required');
+                return;
+            }
+            const room = await createRoom({
+                name,
+                password,
+                max_members: Number.isFinite(maxMembers) ? maxMembers : 0,
+                discoverable
+            });
+            if (room && room.id) {
+                closeRoomModal();
+                switchRoom(room.id);
+            }
+            return;
+        }
+
+        if (mode === 'join') {
+            const roomId = els.roomModal.dataset.roomId;
+            if (!roomId) return;
+            const password = (els.roomJoinPassword && els.roomJoinPassword.value || '').trim();
+            await joinRoom(roomId, password);
+            closeRoomModal();
+        }
+    });
+}
+
+if (els.roomModal) {
+    els.roomModal.addEventListener('click', e => {
+        if (e.target === els.roomModal) {
+            closeRoomModal();
+        }
+    });
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && els.roomModal && !els.roomModal.classList.contains('hidden')) {
+        closeRoomModal();
+    }
+});
 
 document.addEventListener('click', e => {
     const emojiToggleHit = els.emojiToggle && els.emojiToggle.contains(e.target);

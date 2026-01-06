@@ -15,7 +15,7 @@ class Settings:
         interface_ip: str | None = None,
         port: int = 54545,
         broadcast_ip: str = "255.255.255.255",
-        ui_host: str = "127.0.0.1",
+        ui_host: str = "0.0.0.0",
         ui_port: int = 5000,
     ):
         self.nickname = nickname
@@ -31,7 +31,7 @@ class Settings:
         interface_ip = os.getenv("ANONCHAT_INTERFACE_IP")
         port = int(os.getenv("ANONCHAT_PORT", "54545"))
         broadcast_ip = os.getenv("ANONCHAT_BROADCAST_IP", "255.255.255.255")
-        ui_host = os.getenv("ANONCHAT_UI_HOST", "127.0.0.1")
+        ui_host = os.getenv("ANONCHAT_UI_HOST", "0.0.0.0")
         ui_port = int(os.getenv("ANONCHAT_UI_PORT", "5000"))
 
         return cls(

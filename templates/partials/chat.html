@@ -39,7 +39,7 @@
             </div>
             <div class="summary-card">
                 <div class="summary-label">Active Rooms</div>
-                <div class="summary-value">1</div>
+                <div id="home-room-count" class="summary-value">1</div>
             </div>
             <div class="summary-card">
                 <div class="summary-label">Unread Messages</div>
@@ -55,9 +55,9 @@
             </div>
         </div>
         <div class="summary-grid">
-            <div class="summary-card">
+            <div class="summary-card nickname-card">
                 <div class="summary-label">Nickname</div>
-                <div class="summary-inline">
+                <div class="summary-inline nickname-inline">
                     <label class="field nickname-field">
                         <span class="field-icon">
                             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -66,6 +66,7 @@
                     </label>
                     <button id="nickname-save" class="ghost-btn small-btn" type="button">Update</button>
                 </div>
+                <div class="summary-hint">Shows next to your messages for nearby peers.</div>
             </div>
             <div class="summary-card">
                 <div class="summary-label">Interface</div>
@@ -112,6 +113,56 @@
             <span id="char-count" class="meta-count">0</span>
         </div>
     </footer>
+
+    <div id="room-modal" class="modal hidden" data-mode="create" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="room-modal-title">
+            <div class="modal-header">
+                <div id="room-modal-title" class="modal-title">Create room</div>
+                <button id="room-modal-close" class="icon-btn" type="button" aria-label="Close">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section create-only">
+                    <label class="field">
+                        <span class="field-icon">#</span>
+                        <input id="room-create-name" class="field-input" type="text" placeholder="Room name">
+                    </label>
+                    <div class="modal-grid">
+                        <label class="field">
+                            <span class="field-icon mono">MAX</span>
+                            <input id="room-create-limit" class="field-input" type="number" min="2" max="200" placeholder="Max members">
+                        </label>
+                        <label class="field">
+                            <span class="field-icon">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+                            </span>
+                            <input id="room-create-password" class="field-input" type="password" placeholder="Password (optional)">
+                        </label>
+                    </div>
+                    <label class="toggle">
+                        <input id="room-create-discoverable" type="checkbox" checked>
+                        <span>Discoverable to nearby devices</span>
+                    </label>
+                </div>
+                <div class="modal-section join-only">
+                    <div class="modal-note">Join room</div>
+                    <div id="room-join-name" class="modal-room-name">Room</div>
+                    <div id="room-join-meta" class="modal-room-meta"></div>
+                    <label class="field">
+                        <span class="field-icon">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+                        </span>
+                        <input id="room-join-password" class="field-input" type="password" placeholder="Room password">
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="room-modal-cancel" class="ghost-btn" type="button">Cancel</button>
+                <button id="room-modal-submit" class="primary-btn" type="button">Create room</button>
+            </div>
+        </div>
+    </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </main>
