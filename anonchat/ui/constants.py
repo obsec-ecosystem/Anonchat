@@ -1,7 +1,11 @@
 from pathlib import Path
+import sys
 
 FRONT_DIR = Path(__file__).resolve().parent
-ROOT_DIR = FRONT_DIR.parent.parent
+if getattr(sys, "frozen", False):
+    ROOT_DIR = Path(sys.executable).resolve().parent
+else:
+    ROOT_DIR = FRONT_DIR.parent.parent
 UPLOAD_DIR = ROOT_DIR / "uploads"
 SHARE_DIR = ROOT_DIR / "share"
 DATA_DIR = ROOT_DIR / "database"

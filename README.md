@@ -39,3 +39,10 @@ Set environment variables to override defaults:
 - `anonchat/ui`: Flask UI + templates/static assets
 - `anonchat/cli`: CLI commands and menu
 - `anonchat/config`: runtime settings
+
+## Build Windows exe
+```powershell
+pip install -r requirements.txt -r requirements-build.txt
+.\scripts\build_windows.ps1
+```
+The exe will be in `dist/anonchat.exe`.
