@@ -2,8 +2,9 @@
 
 function renderMembers(room) {
     if (!els.membersSection || !els.membersList) return;
-    hideMemberPopover();
+    const popoverState = state.memberPopover;
     if (!room || state.room === 'all') {
+        hideMemberPopover();
         els.membersSection.classList.add('hidden');
         els.membersList.innerHTML = '';
         if (els.membersCount) {
@@ -19,10 +20,12 @@ function renderMembers(room) {
         els.membersCount.textContent = `${count}`;
     }
     if (!room.joined) {
+        hideMemberPopover();
         els.membersList.innerHTML = '<div class="nav-empty">Join the room to view members</div>';
         return;
     }
     if (!members.length) {
+        hideMemberPopover();
         els.membersList.innerHTML = '<div class="nav-empty">No members listed</div>';
         return;
     }
@@ -68,6 +71,17 @@ function renderMembers(room) {
             });
         });
     }
+
+    if (popoverState && popoverState.roomId === room.id) {
+        const anchor = els.membersList.querySelector(
+            `.member-item[data-member="${popoverState.memberId}"]`
+        );
+        if (anchor) {
+            showMemberPopover(popoverState.memberId, room, anchor);
+            return;
+        }
+    }
+    hideMemberPopover();
 }
 
 function showMemberPopover(memberId, room, anchor) {
@@ -76,6 +90,7 @@ function showMemberPopover(memberId, room, anchor) {
     els.memberPopoverId.textContent = memberId;
     els.memberPopover.dataset.memberId = memberId;
     els.memberPopover.dataset.roomId = room.id;
+    state.memberPopover = { memberId, roomId: room.id };
     if (els.memberPopoverKick) {
         const canKick = room.is_owner && memberId !== state.meId;
         els.memberPopoverKick.classList.toggle('hidden', !canKick);
@@ -111,4 +126,5 @@ function hideMemberPopover() {
     els.memberPopover.setAttribute('aria-hidden', 'true');
     delete els.memberPopover.dataset.memberId;
     delete els.memberPopover.dataset.roomId;
+    state.memberPopover = null;
 }

@@ -5,10 +5,10 @@ from typing import Callable, Optional
 
 from flask import Flask
 
-from core.room_chat import ROOM_CTL_PREFIX, ROOM_MSG_PREFIX, RoomManager
-from front.constants import MAX_UPLOAD_BYTES, STATIC_DIR, TEMPLATES_DIR, UPLOAD_DIR
-from front.message_store import MessageStore
-from front.routes import configure_routes
+from anonchat.core.room_chat import ROOM_CTL_PREFIX, ROOM_MSG_PREFIX, RoomManager
+from anonchat.ui.constants import MAX_UPLOAD_BYTES, SHARE_DIR, STATIC_DIR, TEMPLATES_DIR, UPLOAD_DIR
+from anonchat.ui.message_store import MessageStore
+from anonchat.ui.routes import configure_routes
 
 
 class UIServer:
@@ -44,6 +44,7 @@ class UIServer:
             store_message=self.messages.store,
         )
 
+        SHARE_DIR.mkdir(parents=True, exist_ok=True)
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
         self.app = Flask(

@@ -1,12 +1,12 @@
-import time
+import secrets
 
 from flask import jsonify, render_template, request, send_from_directory
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
-from core.network import list_ipv4_interfaces
-from core.room_chat import ROOM_MSG_PREFIX
-from front.constants import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, UPLOAD_DIR
+from anonchat.core.network import list_ipv4_interfaces
+from anonchat.core.room_chat import ROOM_MSG_PREFIX
+from anonchat.ui.constants import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SHARE_DIR, UPLOAD_DIR
 
 
 def configure_routes(app, ui):
@@ -231,9 +231,14 @@ def configure_routes(app, ui):
         if request.content_length and request.content_length > MAX_UPLOAD_BYTES:
             return jsonify({"error": f"File too large (max {MAX_UPLOAD_MB} MB)"}), 413
 
-        timestamp = int(time.time())
-        target_name = f"{timestamp}_{safe_name}"
-        target_path = UPLOAD_DIR / target_name
+        room_id = str(request.form.get("room") or "all").strip() or "all"
+        safe_room = secure_filename(room_id) or "all"
+        safe_room = safe_room[:64]
+        token = secrets.token_hex(8)
+        target_name = f"{token}_{safe_name}"
+        room_dir = SHARE_DIR / safe_room
+        room_dir.mkdir(parents=True, exist_ok=True)
+        target_path = room_dir / target_name
         file.save(target_path)
 
         host = request.host.split(":")[0]
@@ -245,7 +250,7 @@ def configure_routes(app, ui):
                 if not candidate.startswith("127."):
                     ip = candidate
                     break
-        url = f"{scheme}://{ip}:{port}/uploads/{target_name}"
+        url = f"{scheme}://{ip}:{port}/share/{safe_room}/{target_name}"
 
         return jsonify(
             {
@@ -256,6 +261,10 @@ def configure_routes(app, ui):
                 "url": url,
             }
         )
+
+    @app.get("/share/<path:filename>")
+    def share_serve(filename: str):
+        return send_from_directory(SHARE_DIR, filename, as_attachment=False)
 
     @app.get("/uploads/<path:filename>")
     def upload_serve(filename: str):

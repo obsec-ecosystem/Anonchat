@@ -29,7 +29,8 @@ const state = {
     notifications: [],
     blockedPeers: new Set(),
     meId: '',
-    mutedRooms: new Set()
+    mutedRooms: new Set(),
+    memberPopover: null
 };
 
 const els = {

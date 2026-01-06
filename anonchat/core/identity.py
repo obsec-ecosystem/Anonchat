@@ -2,7 +2,7 @@
 
 import uuid
 
-from core.crypto import CryptoBox
+from anonchat.core.crypto import CryptoBox
 
 
 class Identity:

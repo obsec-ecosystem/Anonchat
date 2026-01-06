@@ -146,6 +146,7 @@ function insertEmoji(emoji) {
 async function uploadFile(file) {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('room', state.room || 'all');
     const res = await fetch('/api/upload', {
         method: 'POST',
         body: formData
@@ -198,6 +199,14 @@ function handleRoomEvents(events) {
             showToast(event.reason || 'Join denied');
         } else if (event.type === 'room_discovered') {
             showToast(`New room: ${event.name || 'room'}`);
+        } else if (event.type === 'room_member_joined') {
+            if (!event.member_id) return;
+            const roomName = event.room_name || (event.room_id ? roomLabel(event.room_id) : 'room');
+            showToast(`${peerLabel(event.member_id)} joined ${roomName}`);
+        } else if (event.type === 'room_member_left') {
+            if (!event.member_id) return;
+            const roomName = event.room_name || (event.room_id ? roomLabel(event.room_id) : 'room');
+            showToast(`${peerLabel(event.member_id)} left ${roomName}`);
         } else if (event.type === 'room_kicked') {
             showToast(event.reason || 'Removed from room');
             if (event.room_id && state.room === event.room_id) {

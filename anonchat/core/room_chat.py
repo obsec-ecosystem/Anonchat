@@ -241,6 +241,14 @@ class RoomManager:
                     room_payload = None
 
             if ok:
+                self._push_room_event(
+                    {
+                        "type": "room_member_joined",
+                        "room_id": room_id,
+                        "room_name": room.name if room else "",
+                        "member_id": sender_id,
+                    }
+                )
                 ack = {
                     "type": "room_join_ack",
                     "room_id": room_id,
@@ -332,9 +340,35 @@ class RoomManager:
                 room = self._rooms.get(room_id)
                 if not room:
                     return
+                previous = set(room.members)
                 room.members = set(members)
                 room.joined = self.identity.anon_id in room.members
                 room.pending = False
+                room_name = room.name
+            joined = set(members) - previous
+            left = previous - set(members)
+            for member_id in joined:
+                if member_id == self.identity.anon_id:
+                    continue
+                self._push_room_event(
+                    {
+                        "type": "room_member_joined",
+                        "room_id": room_id,
+                        "room_name": room_name,
+                        "member_id": member_id,
+                    }
+                )
+            for member_id in left:
+                if member_id == self.identity.anon_id:
+                    continue
+                self._push_room_event(
+                    {
+                        "type": "room_member_left",
+                        "room_id": room_id,
+                        "room_name": room_name,
+                        "member_id": member_id,
+                    }
+                )
             return
 
         if kind == "room_leave":
@@ -348,6 +382,15 @@ class RoomManager:
                 if sender_id in room.members:
                     room.members.discard(sender_id)
                 members = sorted(room.members)
+                room_name = room.name
+            self._push_room_event(
+                {
+                    "type": "room_member_left",
+                    "room_id": room_id,
+                    "room_name": room_name,
+                    "member_id": sender_id,
+                }
+            )
             self._broadcast_room_ctl(
                 set(members),
                 {"type": "room_members", "room_id": room_id, "members": members},

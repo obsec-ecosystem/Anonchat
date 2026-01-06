@@ -1,12 +1,30 @@
-# Byte-compiled / optimized files
-*__pycache__/
+# Python bytecode
+__pycache__/
 *.py[cod]
 *$py.class
+
+# Runtime data
 uploads/
-# Distribution / packaging
+share/
+database/
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Virtual environments
+.env
+.env.*
+.venv/
+venv/
+env/
+ENV/
+venv.bak/
+
+# Packaging / build
 .Python
 build/
-develop-eggs/
 dist/
 downloads/
 eggs/
@@ -18,7 +36,6 @@ sdist/
 var/
 wheels/
 pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -28,42 +45,21 @@ MANIFEST
 *.manifest
 *.spec
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
+# Tests / coverage
+.pytest_cache/
 .tox/
 .nox/
+htmlcov/
 .coverage
 .coverage.*
-.cache
-nosetests.xml
 coverage.xml
 *.cover
 *.py,cover
-*.db
-*.sqlite
-.pytest_cache/
 cover/
 
-# Type checker
+# Type checker / misc caches
 .mypy_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
-venv.bak/
+.cache/
 
 # IDE / editor files
 .idea/

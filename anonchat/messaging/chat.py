@@ -1,4 +1,4 @@
-# app/chat.py
+# anonchat/messaging/chat.py
 
 import os
 
