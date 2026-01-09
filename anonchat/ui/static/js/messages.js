@@ -150,10 +150,9 @@ function addMessage(msg) {
 
     applyMessageFilter();
 
+    let unreadChanged = false;
     if (msg.direction === 'in' && msgRoom !== state.room) {
-        state.unreadByRoom[msgRoom] = (state.unreadByRoom[msgRoom] || 0) + 1;
-        renderNav(state.rooms, state.peers);
-        updateUnreadTotals();
+        unreadChanged = incrementUnread(msgRoom);
         addNotification(msg);
     }
 
@@ -166,6 +165,7 @@ function addMessage(msg) {
     }
 
     updateEmptyState();
+    return unreadChanged;
 }
 
 function applyMessageFilter() {
@@ -203,15 +203,13 @@ function switchRoom(room) {
     state.lastId = 0;
     state.lastGroupKey = null;
     if (room === 'all') {
-        state.unreadByRoom = {};
-        state.notifications = [];
+        clearUnread('all');
     } else {
-        state.unreadByRoom[room] = 0;
+        clearUnread(room);
     }
     els.feed.querySelectorAll('.bubble-group').forEach(node => node.remove());
     resetUnread();
     updateEmptyState();
-    updateUnreadTotals();
     renderNav(state.rooms, state.peers);
     fetchState(true);
 }

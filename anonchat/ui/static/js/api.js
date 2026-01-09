@@ -8,12 +8,13 @@ async function fetchState(force = false) {
         if (!res.ok) return;
         const data = await res.json();
 
+        let navDirty = false;
         if (data.me && data.me.id) {
             state.meId = data.me.id;
         }
         state.rooms = Array.isArray(data.rooms) ? data.rooms : [];
         state.peers = data.peers || [];
-        renderNav(state.rooms, state.peers);
+        navDirty = true;
         const activeRoom = roomById(state.room);
         if (activeRoom && !activeRoom.joined && !activeRoom.pending) {
             switchRoom('all');
@@ -44,13 +45,20 @@ async function fetchState(force = false) {
         }
 
         if (data.messages && data.messages.length) {
-            data.messages.forEach(addMessage);
+            data.messages.forEach(msg => {
+                if (addMessage(msg)) {
+                    navDirty = true;
+                }
+            });
             state.lastId = data.messages[data.messages.length - 1].id;
             state.sidebarLastId = Math.max(state.sidebarLastId, state.lastId);
         }
 
         if (data.room_events && data.room_events.length) {
             handleRoomEvents(data.room_events);
+        }
+        if (navDirty) {
+            renderNav(state.rooms, state.peers);
         }
     } finally {
         state.fetching = false;
@@ -64,29 +72,37 @@ async function fetchSidebarState() {
         if (!res.ok) return;
         const data = await res.json();
 
+        let navDirty = false;
         if (data.me && data.me.id) {
             state.meId = data.me.id;
         }
         if (Array.isArray(data.rooms)) {
             state.rooms = data.rooms;
+            navDirty = true;
         }
-        state.peers = data.peers || state.peers;
-        renderNav(state.rooms, state.peers);
+        if (Array.isArray(data.peers)) {
+            state.peers = data.peers;
+            navDirty = true;
+        }
 
         if (data.messages && data.messages.length) {
             data.messages.forEach(msg => {
                 if (msg.direction !== 'in') return;
                 const msgRoom = msg.room || msg.peer_id;
                 if (msgRoom === state.room) return;
-                state.unreadByRoom[msgRoom] = (state.unreadByRoom[msgRoom] || 0) + 1;
+                if (incrementUnread(msgRoom)) {
+                    navDirty = true;
+                }
                 addNotification(msg);
             });
             state.sidebarLastId = data.messages[data.messages.length - 1].id;
-            updateUnreadTotals();
         }
 
         if (data.room_events && data.room_events.length) {
             handleRoomEvents(data.room_events);
+        }
+        if (navDirty) {
+            renderNav(state.rooms, state.peers);
         }
     } catch (err) {
         return;
@@ -322,8 +338,7 @@ async function leaveRoom(roomId) {
         room.joined = false;
         room.pending = false;
     }
-    state.unreadByRoom[roomId] = 0;
-    updateUnreadTotals();
+    clearUnread(roomId);
     if (state.room === roomId) {
         switchRoom('all');
     } else {

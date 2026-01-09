@@ -41,17 +41,13 @@ if (els.muteRoomBtn) {
 if (els.markReadBtn) {
     els.markReadBtn.addEventListener('click', () => {
         if (state.room === 'all') {
-            state.unreadByRoom = {};
-            updateUnreadTotals();
-            clearNotifications('all');
+            clearUnread('all');
             renderNav(state.rooms, state.peers);
             showToast('All caught up');
             return;
         }
-        state.unreadByRoom[state.room] = 0;
+        clearUnread(state.room);
         resetUnread();
-        updateUnreadTotals();
-        clearNotifications(state.room);
         renderNav(state.rooms, state.peers);
         showToast('Marked read');
     });

@@ -91,6 +91,27 @@ function updateUnreadTotals() {
     updateRoomActionUI();
 }
 
+function incrementUnread(roomId) {
+    if (!roomId || roomId === state.room) return false;
+    const next = (state.unreadByRoom[roomId] || 0) + 1;
+    state.unreadByRoom[roomId] = next;
+    return true;
+}
+
+function clearUnread(roomId) {
+    if (!roomId) return false;
+    if (roomId === 'all') {
+        const hasUnread = Object.values(state.unreadByRoom).some(count => count > 0);
+        state.unreadByRoom = {};
+        clearNotifications('all');
+        return hasUnread;
+    }
+    const hasUnread = Boolean(state.unreadByRoom[roomId]);
+    delete state.unreadByRoom[roomId];
+    clearNotifications(roomId);
+    return hasUnread;
+}
+
 function resetUnread() {
     state.unread = 0;
     updateScrollButton();
