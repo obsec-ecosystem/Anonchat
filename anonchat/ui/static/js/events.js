@@ -42,6 +42,7 @@ if (els.markReadBtn) {
     els.markReadBtn.addEventListener('click', () => {
         if (state.room === 'all') {
             clearUnread('all');
+            resetUnread();
             renderNav(state.rooms, state.peers);
             showToast('All caught up');
             return;

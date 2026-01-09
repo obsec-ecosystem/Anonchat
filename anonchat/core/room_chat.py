@@ -24,6 +24,7 @@ class Room:
     members: Set[str] = field(default_factory=set)
     joined: bool = False
     pending: bool = False
+    pending_since: Optional[float] = None
 
 
 class RoomManager:
@@ -84,6 +85,7 @@ class RoomManager:
         }
 
     def serialize_rooms(self) -> List[Dict]:
+        self._clear_stale_pending()
         with self._lock:
             rooms = list(self._rooms.values())
         rooms.sort(key=lambda r: r.created_at)
@@ -97,6 +99,38 @@ class RoomManager:
             self._room_events.append(event)
             if len(self._room_events) > 50:
                 self._room_events = self._room_events[-50:]
+
+    def _clear_stale_pending(self, timeout: float = 8.0):
+        """
+        Reset pending joins that never received an acknowledgement
+        so the user can retry instead of being stuck.
+        """
+        now = time.time()
+        timed_out: List[Tuple[str, str]] = []
+        with self._lock:
+            for room in self._rooms.values():
+                if not room.pending:
+                    continue
+                if not room.pending_since:
+                    room.pending = False
+                    room.pending_since = None
+                    timed_out.append((room.id, room.name))
+                    continue
+                if now - room.pending_since < timeout:
+                    continue
+                room.pending = False
+                room.pending_since = None
+                timed_out.append((room.id, room.name))
+
+        for room_id, room_name in timed_out:
+            self._push_room_event(
+                {
+                    "type": "room_join_denied",
+                    "room_id": room_id,
+                    "name": room_name,
+                    "reason": "Join request timed out",
+                }
+            )
 
     def consume_room_events(self, peer_ids: Set[str]) -> Tuple[Set[str], List[Dict]]:
         with self._lock:
@@ -301,6 +335,7 @@ class RoomManager:
                 if ok:
                     room.joined = True
                     room.pending = False
+                    room.pending_since = None
                     room.members = set(members)
                     if self.identity.anon_id not in room.members:
                         room.members.add(self.identity.anon_id)
@@ -315,6 +350,7 @@ class RoomManager:
                         )
                 else:
                     room.pending = False
+                    room.pending_since = None
 
             if ok:
                 self._push_room_event(
@@ -344,6 +380,7 @@ class RoomManager:
                 room.members = set(members)
                 room.joined = self.identity.anon_id in room.members
                 room.pending = False
+                room.pending_since = None
                 room_name = room.name
             joined = set(members) - previous
             left = previous - set(members)
@@ -408,6 +445,7 @@ class RoomManager:
                     return
                 room.joined = False
                 room.pending = False
+                room.pending_since = None
                 room.members.discard(self.identity.anon_id)
             self._push_room_event(
                 {
@@ -445,6 +483,7 @@ class RoomManager:
                 self._rooms[room_id] = room
             room.joined = True
             room.pending = False
+            room.pending_since = None
             room.members.add(self.identity.anon_id)
             room.members.add(sender_id)
 
@@ -498,13 +537,19 @@ class RoomManager:
             room = self._rooms.get(room_id)
             if not room:
                 return 404, {"error": "Room not found"}
+            if not self.chat:
+                return 503, {"error": "Chat not ready"}
             if room.owner_id == self.identity.anon_id:
                 room.joined = True
                 room.pending = False
+                room.pending_since = None
                 return 200, {"ok": True, "room": self._serialize_room(room)}
             if room.joined:
+                room.pending = False
+                room.pending_since = None
                 return 200, {"ok": True, "room": self._serialize_room(room)}
             room.pending = True
+            room.pending_since = time.time()
             owner_id = room.owner_id
 
         try:
@@ -512,12 +557,13 @@ class RoomManager:
                 owner_id,
                 {"type": "room_join", "room_id": room_id, "password": password},
             )
-        except ValueError:
+        except (ValueError, Exception):
             with self._lock:
                 room = self._rooms.get(room_id)
                 if room:
                     room.pending = False
-            return 400, {"error": "Room owner offline"}
+                    room.pending_since = None
+            return 400, {"error": "Room owner unavailable"}
 
         return 200, {"ok": True}
 
@@ -530,6 +576,7 @@ class RoomManager:
                 return 400, {"error": "Owner cannot leave the room"}
             room.joined = False
             room.pending = False
+            room.pending_since = None
             room.members.discard(self.identity.anon_id)
             owner_id = room.owner_id
 

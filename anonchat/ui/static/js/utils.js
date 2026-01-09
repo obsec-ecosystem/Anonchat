@@ -60,11 +60,12 @@ function updateRoomActionUI() {
         const unread = state.room === 'all'
             ? (state.unreadByRoom.all || 0)
             : (state.unreadByRoom[state.room] || 0);
+        const hasInViewUnread = state.unread > 0;
         const label = els.markReadBtn.querySelector('.btn-label');
         if (label) {
             label.textContent = state.room === 'all' ? 'Mark all read' : 'Mark read';
         }
-        els.markReadBtn.disabled = unread === 0;
+        els.markReadBtn.disabled = unread === 0 && !hasInViewUnread;
     }
 }
 
